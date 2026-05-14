@@ -1,0 +1,75 @@
+[tools]
+ruby = '3.4.7'
+# also set node version in package.json
+node = '25.2.1'
+watchexec = "2.3.0"
+
+[vars]
+prettier_patterns = "'app/**/*.rb' 'lib/**/*.rb' 'spec/**/*.rb'"
+eslint_dirs = "app/javascript app/assets"
+
+[tasks.switched]
+run = "npm install; bundle install; spec/dummy/bin/rails db:migrate"
+
+[tasks.rb]
+run = "bundle exec ruby"
+
+[tasks.vitest]
+run = "npx vitest run"
+
+[tasks.vitest-watch]
+run = "npx vitest watch"
+
+[tasks.rspec]
+run = "bundle exec rspec"
+
+[tasks.rspec-nonsystem]
+run = "bundle exec rspec --tag ~type:system"
+
+[tasks.console]
+run = "bin/rails console -- --nomultiline"
+
+[tasks.script]
+run = "rails runner"
+
+[tasks.dev]
+run = "bin/dev"
+
+[tasks."rubocop"]
+run = "bundle exec rubocop --autocorrect-all --format simple --parallel --cache true app/ lib/ spec/ script/"
+
+[tasks."check:tsc"]
+run = "npx tsc --build"
+
+[tasks."eslint"]
+run = "npx eslint --fix {{vars.eslint_dirs}}"
+
+[tasks."check:brakeman"]
+run = "bundle exec brakeman -q --safe-methods joined_fact_table_name,quote_table_name --url-safe-methods sanitize"
+
+[tasks."brakeman-ignore"]
+run = "mise run check:brakeman -I"
+
+[tasks."prettier"]
+run = "npx prettier {{vars.prettier_patterns}} --write --log-level warn"
+
+[tasks.prepre]
+depends = ["prettier", "vitest"]
+run = "mise run ci"
+
+[tasks."ci:rubocop"]
+run = "bundle exec rubocop --format simple --cache true app/ lib/ spec/"
+
+[tasks."ci:eslint"]
+run = "npx eslint {{vars.eslint_dirs}}"
+
+[tasks.ci]
+run = [
+  # "mise run check:tsc",
+  # "mise run ci:eslint",
+  # "bin/rails zeitwerk:check",
+  "mise run check:brakeman",
+  "mise run ci:rubocop",
+  # "mise run vitest",
+  "mise run rspec",
+]
