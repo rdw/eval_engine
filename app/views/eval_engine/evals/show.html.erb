@@ -2,7 +2,14 @@
   <%= link_to "Evals", root_path %> / <%= @eval_name %>
 </nav>
 
-<h1><%= @eval_name %></h1>
+<div class="ee-page-header">
+  <h1><%= @eval_name %></h1>
+  <div class="ee-actions">
+    <%= button_to "Run all", eval_runs_path(@eval_name), method: :post, class: "ee-btn ee-btn--primary" %>
+    <%= button_to "Promote latest", eval_checkpoint_path(@eval_name), method: :post, class: "ee-btn" %>
+    <%= button_to "Rescore", eval_rescore_path(@eval_name), method: :post, class: "ee-btn" %>
+  </div>
+</div>
 
 <section class="ee-summary">
   <div class="ee-summary__cell">
@@ -29,6 +36,7 @@
           <th>Input</th>
           <th>Expected</th>
           <th class="ee-table__num">Latest score</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -39,6 +47,9 @@
             <td><%= preview(example.input) %></td>
             <td><%= preview(example.expected) %></td>
             <td class="ee-table__num"><%= example_score_cell(latest_row) %></td>
+            <td class="ee-table__num">
+              <%= button_to "Run", eval_runs_path(@eval_name, only: example.key), method: :post, class: "ee-btn ee-btn--small" %>
+            </td>
           </tr>
         <% end %>
       </tbody>
@@ -60,6 +71,7 @@
           <th class="ee-table__num">Mean score</th>
           <th class="ee-table__num">Errored</th>
           <th class="ee-table__num">Duration</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -71,6 +83,10 @@
             <td class="ee-table__num"><%= format_score(run.run_examples.average(:score)) %></td>
             <td class="ee-table__num"><%= run.run_examples.errored.count %></td>
             <td class="ee-table__num"><%= duration_text(run) %></td>
+            <td class="ee-table__num">
+              <%= button_to "Promote", eval_checkpoint_path(@eval_name, run_id: run.id), method: :post, class: "ee-btn ee-btn--small" %>
+              <%= button_to "Delete", eval_run_path(@eval_name, run.id), method: :delete, class: "ee-btn ee-btn--small ee-btn--danger" %>
+            </td>
           </tr>
         <% end %>
       </tbody>

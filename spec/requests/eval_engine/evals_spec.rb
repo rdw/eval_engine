@@ -93,4 +93,38 @@ RSpec.describe "EvalEngine::Evals", type: :request do
       expect(response.body).to include("does_not_exist")
     end
   end
+
+  describe "POST /:name/rescore" do
+    it "redirects with a notice describing how many rows were rescored" do
+      run =
+        EvalEngine::Run.create!(
+          eval_name: "is_ebike_manufacturer",
+          status: :completed,
+          started_at: 1.minute.ago,
+          finished_at: Time.current
+        )
+      EvalEngine::RunExample.create!(
+        run: run,
+        example_key: "amazon",
+        status: :completed,
+        output: true,
+        score: 0.0,
+        finished_at: Time.current
+      )
+
+      post "/eval_engine/is_ebike_manufacturer/rescore"
+
+      expect(response).to redirect_to("/eval_engine/is_ebike_manufacturer")
+      follow_redirect!
+      expect(response.body).to include("Rescored 1 rows")
+    end
+
+    it "redirects to root with an alert when the eval doesn't exist" do
+      post "/eval_engine/does_not_exist/rescore"
+
+      expect(response).to redirect_to("/eval_engine/")
+      follow_redirect!
+      expect(response.body).to include("Eval not found")
+    end
+  end
 end
