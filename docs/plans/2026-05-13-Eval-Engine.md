@@ -51,7 +51,7 @@ end
 
 - **`generate(input)`** (required): Accepts a primitive-data input, runs the code under test (typically an LLM prompt, but not required), returns an output matching the declared `output_type`.  The return value can be primitive data (a hash, array, string, etc.) or an `EvalEngine::DataType` instance — `DataType` instances are automatically converted to primitive data before storage.
 - **`output_type`** (required): Class-level declaration of the output's shape and how to score it.  See "Types and Matching" below.
-- **`input_type`** (optional, future): Class-level declaration of the input's shape, for validation.
+- **`input_type`** (required): Class-level declaration of the input's shape, used to validate every example's `input` before any `generate` runs.  Use `:string` for a bare-string input or `:hash do field … end` for a structured one.
 
 ### Primitive data
 

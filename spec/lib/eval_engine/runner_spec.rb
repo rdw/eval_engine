@@ -15,6 +15,9 @@ RSpec.describe EvalEngine::Runner do
   describe "happy path" do
     let(:eval_class) do
       Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
         output_type :string, match: :exact
 
         define_method(:generate) { |input| input["color"] }
@@ -59,6 +62,9 @@ RSpec.describe EvalEngine::Runner do
   describe "score is preserved verbatim regardless of value" do
     let(:eval_class) do
       Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
         output_type :string, match: :exact
 
         define_method(:generate) { |input| input["color"] }
@@ -87,6 +93,9 @@ RSpec.describe EvalEngine::Runner do
   describe "generate raises an exception" do
     let(:eval_class) do
       Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
         output_type :string, match: :exact
 
         define_method(:generate) do |input|
@@ -119,6 +128,9 @@ RSpec.describe EvalEngine::Runner do
   describe "generate returns a value that fails output_type validation" do
     let(:eval_class) do
       Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
         output_type :string, match: :exact
 
         define_method(:generate) { |_input| 42 }
@@ -173,6 +185,9 @@ RSpec.describe EvalEngine::Runner do
   describe "only: filters which examples run" do
     let(:eval_class) do
       Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
         output_type :string, match: :exact
 
         define_method(:generate) { |input| input["color"] }
@@ -195,7 +210,14 @@ RSpec.describe EvalEngine::Runner do
   end
 
   describe "missing output_type" do
-    let(:eval_class) { Class.new(EvalEngine::Eval) { define_method(:generate) { |_input| "anything" } } }
+    let(:eval_class) do
+      Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
+        define_method(:generate) { |_input| "anything" }
+      end
+    end
 
     before do
       stub_const("ColorPickEval", eval_class)
@@ -210,9 +232,33 @@ RSpec.describe EvalEngine::Runner do
     end
   end
 
+  describe "missing input_type" do
+    let(:eval_class) do
+      Class.new(EvalEngine::Eval) do
+        output_type :string, match: :exact
+        define_method(:generate) { |input| input["color"] }
+      end
+    end
+
+    before do
+      stub_const("ColorPickEval", eval_class)
+      write_example("any", input: { "color" => "red" }, expected: "red")
+    end
+
+    it "fails fast with a clear error before any DB rows are created" do
+      runner = described_class.new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1)
+
+      expect { runner.run! }.to raise_error(ArgumentError, /must declare an input_type/)
+      expect(EvalEngine::Run.count).to eq(0)
+    end
+  end
+
   describe "block callback for per-example progress" do
     let(:eval_class) do
       Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
         output_type :string, match: :exact
         define_method(:generate) { |input| input["color"] }
       end
@@ -236,6 +282,9 @@ RSpec.describe EvalEngine::Runner do
     it "yields errored example rows too" do
       eval_class_that_raises =
         Class.new(EvalEngine::Eval) do
+          input_type :hash do
+            field :color, :string
+          end
           output_type :string, match: :exact
           define_method(:generate) { |_input| raise "boom" }
         end
@@ -256,6 +305,9 @@ RSpec.describe EvalEngine::Runner do
       eval_dir = File.join(tmp_dir, eval_name)
       File.write(File.join(eval_dir, "#{eval_name}_eval.rb"), <<~RUBY)
         class ColorPickEval < EvalEngine::Eval
+          input_type :hash do
+            field :color, :string
+          end
           output_type :string, match: :exact
 
           def generate(input)

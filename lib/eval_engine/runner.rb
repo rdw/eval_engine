@@ -20,6 +20,7 @@ module EvalEngine
     end
 
     def run!(&on_example_finished)
+      raise ArgumentError, "#{@eval_class.name} must declare an input_type" unless @eval_class.input_type
       raise ArgumentError, "#{@eval_class.name} must declare an output_type" unless @eval_class.output_type
 
       @on_example_finished = on_example_finished
@@ -57,10 +58,8 @@ module EvalEngine
       examples.each do |example|
         label = example.path || example.key
 
-        if input_type
-          tree = input_type.validate(example.input)
-          failures << { label: "#{label} (input)", message: Types::ValidationError.format_tree(tree) } if tree
-        end
+        tree = input_type.validate(example.input)
+        failures << { label: "#{label} (input)", message: Types::ValidationError.format_tree(tree) } if tree
 
         tree = output_type.validate(example.expected)
         failures << { label: "#{label} (expected)", message: Types::ValidationError.format_tree(tree) } if tree
