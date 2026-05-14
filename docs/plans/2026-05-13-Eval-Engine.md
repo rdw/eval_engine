@@ -179,7 +179,7 @@ There is no `score` column on `eval_engine_runs`.  Scores are computed dynamical
 | id          | bigint   | PK                                              |
 | run_id      | bigint   | FK to `eval_engine_runs`                        |
 | example_key | string   | References the example filename                 |
-| status      | string   | `passed`, `failed`, `error`                     |
+| status      | string   | `completed` (generate returned), `errored` (raised) |
 | started_at  | datetime |                                                 |
 | finished_at | datetime |                                                 |
 | input       | json     | Snapshot of the example's input at run time     |
@@ -188,6 +188,8 @@ There is no `score` column on `eval_engine_runs`.  Scores are computed dynamical
 | score_tree  | json     | Scores-only tree (see "Score Trees" below)      |
 | score       | float    | Top-level score for this example (0.0 on error) |
 | error       | text     | Exception message + backtrace (null if no error)|
+
+The `status` enum tracks whether `generate` returned successfully (`completed`) or raised (`errored`); it is **not** a pass/fail judgment on the score.  Whether a given score "passes" is an eval-specific question that depends on thresholds, comparison to a checkpoint, or regression detection — we want to defer that algorithm.  For now the UI can display scores along a red→green spectrum and let the user judge.
 
 **`eval_engine_checkpoints`** table (model `EvalEngine::Checkpoint`):
 
@@ -215,9 +217,9 @@ This design means:
 
 ### Error handling
 
-When `generate` raises an exception for an example:
+When `generate` raises an exception for an example (or its output fails `output_type` validation):
 
-1. The example row is saved with `status: "error"`, `score: 0.0`, `output: null`, `score_tree: null`, and the exception message + backtrace in `error`.
+1. The example row is saved with `status: "errored"`, `score: 0.0`, `output: null`, `score_tree: null`, and the exception message + backtrace in `error`.
 2. The run continues with remaining examples — one failure does not abort the run.
 3. Errored examples contribute 0.0 to computed scores.
 
@@ -475,7 +477,7 @@ Lists all evals discovered under the eval root directory.  For each eval, shows:
   - Right column: actual values, same format
   - Scores displayed in the margin next to corresponding lines
   - Tree nodes are expandable/collapsible
-- Examples with `status: "error"` show the error message and backtrace instead of a diff
+- Examples with `status: "errored"` show the error message and backtrace instead of a diff
 
 
 ## Backend

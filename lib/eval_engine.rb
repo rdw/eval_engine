@@ -8,6 +8,8 @@ require "eval_engine/configuration"
 require "eval_engine/types"
 require "eval_engine/eval"
 require "eval_engine/example"
+require "eval_engine/loader"
+require "eval_engine/runner"
 
 module EvalEngine
   mattr_accessor :connects_to
@@ -40,6 +42,16 @@ module EvalEngine
       FileUtils.mkdir_p(File.dirname(path))
       File.write(path, content)
       path
+    end
+
+    def run(eval_name, **options)
+      eval_root = options[:eval_root] || configuration.eval_root
+      eval_class = Loader.load_eval(eval_name, eval_root: eval_root)
+      Runner.new(eval_class: eval_class, **options).run!
+    end
+
+    def discover_evals
+      Loader.discover
     end
   end
 end

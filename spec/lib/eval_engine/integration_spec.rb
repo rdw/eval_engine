@@ -207,6 +207,7 @@ RSpec.describe "E-bike manufacturer eval integration" do
     before do
       FileUtils.mkdir_p(examples_dir)
 
+      @original_embedding_fn = EvalEngine.configuration.embedding_fn
       EvalEngine.configure { |c| c.embedding_fn = ->(text) { fake_embeddings.fetch(text, [0.0, 0.0, 0.0]) } }
 
       File.write(
@@ -238,7 +239,7 @@ RSpec.describe "E-bike manufacturer eval integration" do
       )
     end
 
-    after { EvalEngine.instance_variable_set(:@configuration, nil) }
+    after { EvalEngine.configuration.embedding_fn = @original_embedding_fn }
 
     it "returns a score tree with children for each field" do
       example = EvalEngine::Example.load_from_file(File.join(examples_dir, "widget.yaml"))

@@ -43,9 +43,12 @@ RSpec.describe EvalEngine::Types do
         }
       end
 
-      before { EvalEngine.configure { |c| c.embedding_fn = ->(text) { fake_embeddings.fetch(text, [0.0, 0.0, 0.0]) } } }
+      before do
+        @original_embedding_fn = EvalEngine.configuration.embedding_fn
+        EvalEngine.configure { |c| c.embedding_fn = ->(text) { fake_embeddings.fetch(text, [0.0, 0.0, 0.0]) } }
+      end
 
-      after { EvalEngine.instance_variable_set(:@configuration, nil) }
+      after { EvalEngine.configuration.embedding_fn = @original_embedding_fn }
 
       it "returns 1.0 for identical strings" do
         result = type.match("manufacturer", "manufacturer")
@@ -68,7 +71,7 @@ RSpec.describe EvalEngine::Types do
       end
 
       it "raises ConfigurationError when no embedding_fn is configured" do
-        EvalEngine.instance_variable_set(:@configuration, nil)
+        EvalEngine.configuration.embedding_fn = nil
         expect { type.match("hello", "world") }.to raise_error(EvalEngine::ConfigurationError, /embedding function/)
       end
     end

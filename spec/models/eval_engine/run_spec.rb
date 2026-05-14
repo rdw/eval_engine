@@ -39,7 +39,7 @@ RSpec.describe EvalEngine::Run, type: :model do
 
   describe "association with run_examples" do
     let!(:run_example) do
-      EvalEngine::RunExample.create!(run: run, example_key: "blixbike", status: :passed, score: 1.0)
+      EvalEngine::RunExample.create!(run: run, example_key: "blixbike", status: :completed, score: 1.0)
     end
 
     it "exposes its run_examples" do
