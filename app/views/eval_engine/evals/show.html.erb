@@ -1,0 +1,79 @@
+<nav class="ee-breadcrumb">
+  <%= link_to "Evals", root_path %> / <%= @eval_name %>
+</nav>
+
+<h1><%= @eval_name %></h1>
+
+<section class="ee-summary">
+  <div class="ee-summary__cell">
+    <span class="ee-summary__label">Latest</span>
+    <span class="ee-summary__value"><%= score_cell(@latest) %></span>
+    <span class="ee-summary__detail"><%= coverage_text(@latest) %></span>
+  </div>
+  <div class="ee-summary__cell">
+    <span class="ee-summary__label">Checkpoint</span>
+    <span class="ee-summary__value"><%= score_cell(@checkpoint) %></span>
+    <span class="ee-summary__detail"><%= checkpoint_detail(@checkpoint) %></span>
+  </div>
+</section>
+
+<section class="ee-section">
+  <h2>Examples (<%= @examples.length %>)</h2>
+  <% if @examples.empty? %>
+    <p class="ee-empty">No examples yet.</p>
+  <% else %>
+    <table class="ee-table">
+      <thead>
+        <tr>
+          <th>Key</th>
+          <th>Input</th>
+          <th>Expected</th>
+          <th class="ee-table__num">Latest score</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @examples.each do |example| %>
+          <% latest_row = @latest_results_by_key[example.key] %>
+          <tr>
+            <td><%= example.key %></td>
+            <td><%= preview(example.input) %></td>
+            <td><%= preview(example.expected) %></td>
+            <td class="ee-table__num"><%= example_score_cell(latest_row) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>
+
+<section class="ee-section">
+  <h2>Recent runs (<%= @runs.length %>)</h2>
+  <% if @runs.empty? %>
+    <p class="ee-empty">No runs yet.</p>
+  <% else %>
+    <table class="ee-table">
+      <thead>
+        <tr>
+          <th>Started</th>
+          <th>Status</th>
+          <th class="ee-table__num">Examples</th>
+          <th class="ee-table__num">Mean score</th>
+          <th class="ee-table__num">Errored</th>
+          <th class="ee-table__num">Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @runs.each do |run| %>
+          <tr>
+            <td><%= run.started_at&.iso8601 %></td>
+            <td><%= status_pill(run.status) %></td>
+            <td class="ee-table__num"><%= run.example_count %></td>
+            <td class="ee-table__num"><%= format_score(run.run_examples.average(:score)) %></td>
+            <td class="ee-table__num"><%= run.run_examples.errored.count %></td>
+            <td class="ee-table__num"><%= duration_text(run) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>

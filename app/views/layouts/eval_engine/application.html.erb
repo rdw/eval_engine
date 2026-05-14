@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Eval engine</title>
+  <title>EvalEngine</title>
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
-
   <%= yield :head %>
-
   <%= stylesheet_link_tag    "eval_engine/application", media: "all" %>
 </head>
 <body>
-
-<%= yield %>
-
+  <header class="ee-header">
+    <%= link_to "EvalEngine", root_path, class: "ee-header__brand" %>
+  </header>
+  <main class="ee-main">
+    <%= yield %>
+  </main>
 </body>
 </html>
