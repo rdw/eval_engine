@@ -10,6 +10,8 @@ ActiveRecord::Migrator.migrations_paths = [
   File.expand_path("../db/migrate", __dir__)
 ]
 
+ActiveRecord::MigrationContext.new(ActiveRecord::Migrator.migrations_paths).migrate
+
 RSpec.configure do |config|
   config.fixture_paths = [Rails.root.join("spec/fixtures")]
   config.use_transactional_fixtures = true

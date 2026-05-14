@@ -126,7 +126,7 @@ Runs are stored in the database (not on disk), providing history, parallel safet
 
 Following the pattern from [Solid Errors](https://github.com/fractaledmind/solid_errors), the engine exposes a `connects_to` setting that the host application can configure to point its tables at any database — its own dedicated DB or the host's primary.
 
-In the host application's `config/environments/production.rb` (typically wired up by an `eval_engine:install` generator):
+In the host application's `config/environments/production.rb`:
 
 ```ruby
 config.eval_engine.connects_to = { database: { writing: :evals } }
@@ -136,13 +136,26 @@ The engine implements this with:
 
 - `EvalEngine.connects_to` — a `mattr_accessor` on the `EvalEngine` module.
 - `EvalEngine::Engine` — declares `config.eval_engine = ActiveSupport::OrderedOptions.new` and an initializer that copies each `config.eval_engine.*` setting onto the `EvalEngine` module.
-- `EvalEngine::Record` — an abstract `ActiveRecord::Base` subclass that calls `connects_to(**EvalEngine.connects_to) if EvalEngine.connects_to`.  All engine models (`EvalRun`, `EvalRunExample`, `EvalCheckpoint`) inherit from `EvalEngine::Record` so they share whatever connection the host configured.
+- `EvalEngine::Record` — an abstract `ActiveRecord::Base` subclass that calls `connects_to(**EvalEngine.connects_to) if EvalEngine.connects_to`.  All engine models (`EvalEngine::Run`, `EvalEngine::RunExample`, `EvalEngine::Checkpoint`) inherit from `EvalEngine::Record` so they share whatever connection the host configured.
 
 When `connects_to` isn't set, models fall through to the host's default connection — so simple apps need no extra configuration.
 
+### Installing in a host app
+
+Hosts pull the engine's migrations using the rake task that Rails generates for any mountable engine:
+
+```bash
+bin/rails eval_engine:install:migrations
+bin/rails db:migrate
+```
+
+No custom install generator is needed — the standard Rails-engine machinery handles it.
+
 ### Database schema
 
-**`eval_runs`** table:
+Per the Rails engine convention, `isolate_namespace EvalEngine` causes table names to be auto-prefixed with `eval_engine_`.
+
+**`eval_engine_runs`** table (model `EvalEngine::Run`):
 
 | Column        | Type      | Notes                                                        |
 |--------------|-----------|--------------------------------------------------------------|
@@ -157,14 +170,14 @@ When `connects_to` isn't set, models fall through to the host's default connecti
 
 The `status` column tracks the run lifecycle: `running` while examples are executing, `completed` when all examples finish (even if some errored), `failed` if the process crashes or is interrupted.  Runs stuck in `running` with a `started_at` older than a configurable timeout are treated as `failed`.
 
-There is no `score` column on `eval_runs`.  Scores are computed dynamically (see "Scoring" below).
+There is no `score` column on `eval_engine_runs`.  Scores are computed dynamically (see "Scoring" below).
 
-**`eval_run_examples`** table:
+**`eval_engine_run_examples`** table (model `EvalEngine::RunExample`):
 
 | Column       | Type     | Notes                                          |
 |-------------|----------|-------------------------------------------------|
 | id          | bigint   | PK                                              |
-| eval_run_id | bigint   | FK to eval_runs                                 |
+| run_id      | bigint   | FK to `eval_engine_runs`                        |
 | example_key | string   | References the example filename                 |
 | status      | string   | `passed`, `failed`, `error`                     |
 | started_at  | datetime |                                                 |
@@ -176,7 +189,7 @@ There is no `score` column on `eval_runs`.  Scores are computed dynamically (see
 | score       | float    | Top-level score for this example (0.0 on error) |
 | error       | text     | Exception message + backtrace (null if no error)|
 
-**`eval_checkpoints`** table:
+**`eval_engine_checkpoints`** table (model `EvalEngine::Checkpoint`):
 
 | Column          | Type      | Notes                                 |
 |----------------|-----------|---------------------------------------|
@@ -190,9 +203,9 @@ There is no `score` column on `eval_runs`.  Scores are computed dynamically (see
 
 Scores are not stored on runs.  Instead, there are two computed scores for each eval:
 
-**Latest score**: For each example currently on disk, find the most recent `eval_run_example` row **across all runs** (by `finished_at`).  The latest score is the **arithmetic mean** of those per-example scores.  This means a single-example re-run updates that example's contribution to the overall score without affecting other examples.  Examples that have never been run are excluded from the mean (and flagged as "not yet run" in the UI).
+**Latest score**: For each example currently on disk, find the most recent `eval_engine_run_examples` row **across all runs** (by `finished_at`).  The latest score is the **arithmetic mean** of those per-example scores.  This means a single-example re-run updates that example's contribution to the overall score without affecting other examples.  Examples that have never been run are excluded from the mean (and flagged as "not yet run" in the UI).
 
-**Checkpoint score**: Same logic, but only considering `eval_run_example` rows with `finished_at` before the checkpoint's `checkpointed_at` datetime.  If an example has no run result before the checkpoint, it's excluded (and flagged).
+**Checkpoint score**: Same logic, but only considering `eval_engine_run_examples` rows with `finished_at` before the checkpoint's `checkpointed_at` datetime.  If an example has no run result before the checkpoint, it's excluded (and flagged).
 
 This design means:
 - **Single-example re-runs compose naturally**: Re-running one example updates its latest score, which flows into the eval's overall latest score.  No special cases needed.
@@ -221,7 +234,7 @@ Because `output` and `expected` are stored as snapshots, and matchers are pure f
 **Workflow**: You notice an expected value is wrong in an example YAML file.  You fix it.  Then:
 
 1. **CLI**: `mise eval <name> --rescore` rescores **all runs** for that eval.  The UI provides a "Rescore" button on individual runs for more targeted rescoring.
-2. The engine loads the updated expected values from disk, re-runs the matcher against the stored `output` for each example in the targeted run(s), and updates the `score_tree`, `score`, and `expected` columns on the affected `eval_run_examples` rows.
+2. The engine loads the updated expected values from disk, re-runs the matcher against the stored `output` for each example in the targeted run(s), and updates the `score_tree`, `score`, and `expected` columns on the affected `eval_engine_run_examples` rows.
 3. The `updated_at` on the affected runs is set.
 
 This avoids paying for another LLM call just to see if fixing an expected value improves the score.  Because latest and checkpoint scores are computed dynamically, they automatically reflect the updated per-example scores.
@@ -229,7 +242,7 @@ This avoids paying for another LLM call just to see if fixing an expected value 
 
 ## Score Trees
 
-A score tree mirrors the shape of the output type but contains **only scores** — no actual or expected values (those are stored separately in `eval_run_examples`).
+A score tree mirrors the shape of the output type but contains **only scores** — no actual or expected values (those are stored separately in `eval_engine_run_examples`).
 
 ### Format
 
@@ -470,7 +483,7 @@ Lists all evals discovered under the eval root directory.  For each eval, shows:
 ### Execution
 
 - **Parallel execution**: Examples within a run execute in parallel.  Default parallelism is configurable globally and overridable per-eval.
-- **Timing**: Execution time is measured per-example (`started_at` / `finished_at` on each `eval_run_example`).
+- **Timing**: Execution time is measured per-example (`started_at` / `finished_at` on each `eval_engine_run_examples` row).
 
 ### Shape validation
 
@@ -521,7 +534,7 @@ Client code is authored in TypeScript and built with Vite.  However, the initial
 ## Tasks
 
 1. **Infrastructure** — Type system (with tree-shaped `validate` / raising `validate!`), matchers, configuration, Rails Engine setup, the `EvalEngine::Eval` base class, the `Example` loader, and the public Ruby API (`create_example`, `sanitize_key`, `save_file`).
-2. **Database layer** — `connects_to` configuration plumbing (per "Database connection"), `EvalEngine::Record` abstract base, migrations for `eval_runs`, `eval_run_examples`, `eval_checkpoints`, and the ActiveRecord models.
+2. **Database layer** — `connects_to` configuration plumbing (per "Database connection"), `EvalEngine::Record` abstract base, migrations for `eval_engine_runs`, `eval_engine_run_examples`, `eval_engine_checkpoints`, and the `EvalEngine::Run` / `RunExample` / `Checkpoint` models.
 3. **Runner** — the orchestrator that loads an eval, validates examples and outputs against declared types, runs examples in parallel, creates run/example rows, handles errors.
 4. **Scoring queries** — the "latest score" and "checkpoint score" computations from the plan.
 5. **CLI** — mise tasks wrapping the runner.

@@ -36,7 +36,7 @@ run = "rails runner"
 run = "bin/dev"
 
 [tasks."rubocop"]
-run = "bundle exec rubocop --autocorrect-all --format simple --parallel --cache true app/ lib/ spec/"
+run = "bundle exec rubocop --autocorrect-all --format simple --parallel --cache true app/ lib/ spec/ db/"
 
 [tasks."check:tsc"]
 run = "npx tsc --build"
@@ -58,7 +58,7 @@ depends = ["prettier", "vitest"]
 run = "mise run ci"
 
 [tasks."ci:rubocop"]
-run = "bundle exec rubocop --format simple --cache true app/ lib/ spec/"
+run = "bundle exec rubocop --format simple --cache true app/ lib/ spec/ db/"
 
 [tasks."ci:eslint"]
 run = "npx eslint {{vars.eslint_dirs}}"

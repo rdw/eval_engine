@@ -1,5 +1,6 @@
 require "fileutils"
 require "yaml"
+require "active_support/core_ext/module/attribute_accessors"
 
 require "eval_engine/version"
 require "eval_engine/engine"
@@ -9,6 +10,8 @@ require "eval_engine/eval"
 require "eval_engine/example"
 
 module EvalEngine
+  mattr_accessor :connects_to
+
   class << self
     def configuration
       @configuration ||= Configuration.new
