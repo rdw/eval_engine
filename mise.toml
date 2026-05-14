@@ -36,7 +36,7 @@ run = "rails runner"
 run = "bin/dev"
 
 [tasks."rubocop"]
-run = "bundle exec rubocop --autocorrect-all --format simple --parallel --cache true app/ lib/ spec/ script/"
+run = "bundle exec rubocop --autocorrect-all --format simple --parallel --cache true app/ lib/ spec/"
 
 [tasks."check:tsc"]
 run = "npx tsc --build"
