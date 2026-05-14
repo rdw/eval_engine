@@ -506,21 +506,24 @@ The engine discovers evals by scanning the configured root directory for `<name>
 
 ## CLI
 
-The CLI is the primary interface for agents and automation.  Commands are defined as mise tasks (custom commands in the project's `mise.toml`).
+The CLI is the primary interface for agents and automation.  It ships as a standalone executable (`exe/eval-cli`, exposed via `spec.executables` in the gemspec) built on Thor.  Verb-first subcommands; multi-value flags where useful; per-subcommand `--help`.  The executable boots the host's Rails environment by requiring `./config/environment.rb` from the current working directory.
 
-| Command                                | Effect                                        | Cost    |
-|----------------------------------------|----------------------------------------------|---------|
-| `mise eval`                            | List all evals with scores                   | Free    |
-| `mise eval <name>`                     | Show scores for one eval                     | Free    |
-| `mise eval <name> --run`               | Run all examples                             | Costs $ |
-| `mise eval <name> --run --only <key>`  | Run one example                              | Costs $ |
-| `mise eval <name> --debug`             | Show per-example score details               | Free    |
-| `mise eval <name> --promote`           | Set checkpoint to current datetime           | Free    |
-| `mise eval <name> --rescore`           | Recompute scores against current expected    | Slow*   |
+| Command                                          | Effect                                       | Cost    |
+|--------------------------------------------------|----------------------------------------------|---------|
+| `eval-cli list`                                  | List all discovered eval names               | Free    |
+| `eval-cli run <name> [--only KEY ...]`           | Run all examples (or a subset)               | Costs $ |
+| `eval-cli show <name>`                           | Show scores + per-example details            | Free    |
+| `eval-cli debug <name> [--only KEY ...]`         | Show per-example score trees                 | Free    |
+| `eval-cli promote <name> [--at TIME]`            | Set checkpoint to now (or to TIME)           | Free    |
+| `eval-cli rescore <name>`                        | Recompute scores against current expected    | Slow*   |
 
 The distinction between **"free"** (comparing stored data) and **"costs $"** (invoking `generate`, which typically calls LLM APIs) is important and should be surfaced clearly in help text and UI.
 
-\* `--rescore` does not re-run `generate` (no LLM prompt costs), but it does recompute matches — which involves embedding calls for any `match: :soft` fields.  This is slow but not expensive in the same way as a full run.
+\* `rescore` does not re-run `generate` (no LLM prompt costs), but it does recompute matches — which involves embedding calls for any `match: :soft` fields.  This is slow but not expensive in the same way as a full run.
+
+Hosts can wrap any of these in their own `mise.toml` for shorter aliases (e.g. `mise eval` → `bundle exec eval-cli list`), but the engine itself does not ship mise tasks — that's the host's choice.
+
+Initial scope (this task): `list`, `run`, `promote`.  The score-display commands (`show`, `debug`) and `rescore` need the scoring queries (next task) and land alongside that.
 
 
 ## Frontend
@@ -538,6 +541,6 @@ Client code is authored in TypeScript and built with Vite.  However, the initial
 1. **Infrastructure** — Type system (with tree-shaped `validate` / raising `validate!`), matchers, configuration, Rails Engine setup, the `EvalEngine::Eval` base class, the `Example` loader, and the public Ruby API (`create_example`, `sanitize_key`, `save_file`).
 2. **Database layer** — `connects_to` configuration plumbing (per "Database connection"), `EvalEngine::Record` abstract base, migrations for `eval_engine_runs`, `eval_engine_run_examples`, `eval_engine_checkpoints`, and the `EvalEngine::Run` / `RunExample` / `Checkpoint` models.
 3. **Runner** — the orchestrator that loads an eval, validates examples and outputs against declared types, runs examples in parallel, creates run/example rows, handles errors.
-4. **Scoring queries** — the "latest score" and "checkpoint score" computations from the plan.
-5. **CLI** — mise tasks wrapping the runner.
+4. **CLI** — Thor-based `exe/eval-cli` executable with verb-first subcommands.  Initial scope: `list`, `run`, `promote`; score-display + `rescore` land with the scoring task.
+5. **Scoring queries** — the "latest score" and "checkpoint score" computations from the plan; unblocks `show`, `debug`, `rescore` in the CLI.
 6. **UI** — Rails controllers/views for index + eval detail pages.

@@ -16,10 +16,13 @@ module EvalEngine
       @only = only
       @eval_root = eval_root || EvalEngine.configuration.eval_root
       @parallelism = parallelism || EvalEngine.configuration.parallelism
+      @callback_mutex = Mutex.new
     end
 
-    def run!
+    def run!(&on_example_finished)
       raise ArgumentError, "#{@eval_class.name} must declare an output_type" unless @eval_class.output_type
+
+      @on_example_finished = on_example_finished
 
       examples = load_examples
       examples = examples.select { |ex| @only.include?(ex.key) } if @only
@@ -119,15 +122,24 @@ module EvalEngine
     end
 
     def save_example_result(run, example, started_at, **attrs)
-      RunExample.create!(
-        run: run,
-        example_key: example.key,
-        input: example.input,
-        expected: example.expected,
-        started_at: started_at,
-        finished_at: Time.current,
-        **attrs
-      )
+      saved =
+        RunExample.create!(
+          run: run,
+          example_key: example.key,
+          input: example.input,
+          expected: example.expected,
+          started_at: started_at,
+          finished_at: Time.current,
+          **attrs
+        )
+      notify_finished(saved)
+      saved
+    end
+
+    def notify_finished(example_row)
+      return unless @on_example_finished
+
+      @callback_mutex.synchronize { @on_example_finished.call(example_row) }
     end
   end
 end

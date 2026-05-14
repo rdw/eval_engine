@@ -44,10 +44,10 @@ module EvalEngine
       path
     end
 
-    def run(eval_name, **options)
+    def run(eval_name, **options, &block)
       eval_root = options[:eval_root] || configuration.eval_root
       eval_class = Loader.load_eval(eval_name, eval_root: eval_root)
-      Runner.new(eval_class: eval_class, **options).run!
+      Runner.new(eval_class: eval_class, **options).run!(&block)
     end
 
     def discover_evals

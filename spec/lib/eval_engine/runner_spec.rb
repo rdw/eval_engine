@@ -210,6 +210,47 @@ RSpec.describe EvalEngine::Runner do
     end
   end
 
+  describe "block callback for per-example progress" do
+    let(:eval_class) do
+      Class.new(EvalEngine::Eval) do
+        output_type :string, match: :exact
+        define_method(:generate) { |input| input["color"] }
+      end
+    end
+
+    before do
+      stub_const("ColorPickEval", eval_class)
+      write_example("red", input: { "color" => "red" }, expected: "red")
+      write_example("blue", input: { "color" => "blue" }, expected: "wrong")
+    end
+
+    it "invokes the block once per example with the saved RunExample row" do
+      yielded = []
+      described_class
+        .new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1)
+        .run! { |row| yielded << [row.example_key, row.score] }
+
+      expect(yielded).to contain_exactly(["red", 1.0], ["blue", 0.0])
+    end
+
+    it "yields errored example rows too" do
+      eval_class_that_raises =
+        Class.new(EvalEngine::Eval) do
+          output_type :string, match: :exact
+          define_method(:generate) { |_input| raise "boom" }
+        end
+      stub_const("ColorPickEval", eval_class_that_raises)
+
+      yielded = []
+      described_class
+        .new(eval_class: eval_class_that_raises, eval_root: tmp_dir, parallelism: 1)
+        .run! { |row| yielded << row }
+
+      expect(yielded.map(&:example_key)).to contain_exactly("red", "blue")
+      expect(yielded).to all(be_errored)
+    end
+  end
+
   describe "EvalEngine.run convenience" do
     before do
       eval_dir = File.join(tmp_dir, eval_name)

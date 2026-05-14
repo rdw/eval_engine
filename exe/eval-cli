@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby
+
+ENV["RAILS_ENV"] ||= "development"
+
+env_file = File.expand_path("config/environment.rb", Dir.pwd)
+unless File.exist?(env_file)
+  warn "eval-cli must be run from the root of a Rails application (no config/environment.rb in #{Dir.pwd})"
+  exit 1
+end
+
+require env_file
+require "eval_engine/cli"
+
+EvalEngine::CLI.start(ARGV)
