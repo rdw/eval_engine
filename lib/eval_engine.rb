@@ -10,6 +10,8 @@ require "eval_engine/eval"
 require "eval_engine/example"
 require "eval_engine/loader"
 require "eval_engine/runner"
+require "eval_engine/scoring"
+require "eval_engine/rescorer"
 
 module EvalEngine
   mattr_accessor :connects_to
@@ -52,6 +54,18 @@ module EvalEngine
 
     def discover_evals
       Loader.discover
+    end
+
+    def latest_score(eval_name)
+      Scoring.latest(eval_name)
+    end
+
+    def checkpoint_score(eval_name)
+      Scoring.at_checkpoint(eval_name)
+    end
+
+    def rescore(eval_name, **options)
+      Rescorer.rescore_all(eval_name, **options)
     end
   end
 end
