@@ -10,24 +10,29 @@ RSpec.describe EvalEngine::Types do
         expect(result).to eq("score" => 1.0)
       end
 
-      it "returns 0.0 for different strings" do
+      it "returns 0.25 for different strings (legacy fixed_string floor — credit for being a string)" do
         result = type.match("hello", "world")
-        expect(result).to eq("score" => 0.0)
+        expect(result).to eq("score" => 0.25)
       end
 
-      it "returns 0.0 when actual is nil" do
+      it "returns 0.0 when actual is nil and expected is not" do
         result = type.match(nil, "hello")
         expect(result).to eq("score" => 0.0)
       end
 
-      it "returns 0.0 when expected is nil" do
+      it "returns 0.0 when expected is nil and actual is not" do
         result = type.match("hello", nil)
         expect(result).to eq("score" => 0.0)
       end
 
-      it "returns 0.0 when both are nil" do
+      it "returns 1.0 when both are nil (legacy: nil-equals-nil)" do
         result = type.match(nil, nil)
-        expect(result).to eq("score" => 0.0)
+        expect(result).to eq("score" => 1.0)
+      end
+
+      it "compares stringified values, so 3 matches '3'" do
+        expect(type.match("3", 3)).to eq("score" => 1.0)
+        expect(type.match(3, "3")).to eq("score" => 1.0)
       end
     end
 
@@ -65,9 +70,10 @@ RSpec.describe EvalEngine::Types do
         expect(result["score"]).to eq(0.0)
       end
 
-      it "returns 0.0 when either value is nil" do
+      it "returns 0.0 when only one value is nil and 1.0 when both are" do
         expect(type.match(nil, "hello")["score"]).to eq(0.0)
         expect(type.match("hello", nil)["score"]).to eq(0.0)
+        expect(type.match(nil, nil)["score"]).to eq(1.0)
       end
 
       it "raises ConfigurationError when no embedding_fn is configured" do
@@ -106,9 +112,9 @@ RSpec.describe EvalEngine::Types do
         expect(result).to eq("score" => 1.0)
       end
 
-      it "returns 0.0 for different integers" do
+      it "returns 0.25 for different integers (legacy floor — credit for being a number)" do
         result = type.match(42, 43)
-        expect(result).to eq("score" => 0.0)
+        expect(result).to eq("score" => 0.25)
       end
 
       it "returns 0.0 when actual is nil" do
@@ -147,9 +153,16 @@ RSpec.describe EvalEngine::Types do
         expect(score).to be < 1.0
       end
 
-      it "returns 0.0 when far outside tolerance" do
+      it "clamps to the 0.25 floor when far outside tolerance" do
         result = type.match(0, 45)
-        expect(result["score"]).to eq(0.0)
+        expect(result["score"]).to eq(0.25)
+      end
+
+      [[7, 0.25], [6, 0.5], [5, 0.75], [4, 1.0], [3, 1.0], [2, 1.0], [1, 1.0], [0, 1.0]].each do |actual, expected|
+        it "interpolates 0.25..1.0 for actual=#{actual} (tolerance: 3, expected: 1)" do
+          result = described_class.new(tolerance: 3).match(actual, 1)
+          expect(result["score"]).to eq(expected)
+        end
       end
     end
 
@@ -183,9 +196,9 @@ RSpec.describe EvalEngine::Types do
         expect(result["score"]).to eq(1.0)
       end
 
-      it "returns 0.0 for different floats with zero tolerance" do
+      it "returns 0.25 for different floats with zero tolerance (legacy floor)" do
         result = type.match(3.14, 3.15)
-        expect(result["score"]).to eq(0.0)
+        expect(result["score"]).to eq(0.25)
       end
 
       it "returns 0.0 when actual is nil" do
@@ -219,9 +232,9 @@ RSpec.describe EvalEngine::Types do
         expect(score).to be < 1.0
       end
 
-      it "returns 0.0 when far outside tolerance" do
+      it "clamps to the 0.25 floor when far outside tolerance" do
         result = type.match(0.0, 10.0)
-        expect(result["score"]).to eq(0.0)
+        expect(result["score"]).to eq(0.25)
       end
     end
 
@@ -311,14 +324,14 @@ RSpec.describe EvalEngine::Types do
         expect(result["score"]).to eq(1.0)
       end
 
-      it "returns 0.5 when one field matches and one mismatches" do
+      it "averages a 1.0 match with the 0.25 string-mismatch floor" do
         result = type.match({ name: "Alice", city: "London" }, { name: "Alice", city: "Paris" })
-        expect(result["score"]).to eq(0.5)
+        expect(result["score"]).to eq(0.625)
       end
 
-      it "returns 0.0 when both fields mismatch" do
+      it "averages two 0.25 string-mismatch floors when both fields differ" do
         result = type.match({ name: "Bob", city: "London" }, { name: "Alice", city: "Paris" })
-        expect(result["score"]).to eq(0.0)
+        expect(result["score"]).to eq(0.25)
       end
 
       it "includes children results keyed by field name as strings" do
@@ -338,13 +351,15 @@ RSpec.describe EvalEngine::Types do
       end
 
       it "weights the important field more heavily" do
+        # important matches (1.0, weight 3); minor floor (0.25, weight 1) → (3.0 + 0.25) / 4 = 0.8125
         result = type.match({ important: "match", minor: "miss" }, { important: "match", minor: "hit" })
-        expect(result["score"]).to eq(0.75)
+        expect(result["score"]).to eq(0.8125)
       end
 
       it "produces a low score when the important field mismatches" do
+        # important floor (0.25, weight 3); minor matches (1.0, weight 1) → (0.75 + 1.0) / 4 = 0.4375
         result = type.match({ important: "miss", minor: "hit" }, { important: "match", minor: "hit" })
-        expect(result["score"]).to eq(0.25)
+        expect(result["score"]).to eq(0.4375)
       end
     end
 
@@ -385,13 +400,15 @@ RSpec.describe EvalEngine::Types do
       end
 
       it "produces partial score when nested field mismatches" do
+        # address.street matches (1.0); address.zip floors (0.25) → address = 0.625.
+        # name matches (1.0); top-level = (1.0 + 0.625) / 2 = 0.8125.
         result =
           type.match(
             { name: "Alice", address: { street: "123 Main", zip: "00000" } },
             { name: "Alice", address: { street: "123 Main", zip: "90210" } }
           )
-        expect(result["score"]).to eq(0.75)
-        expect(result["children"]["address"]["score"]).to eq(0.5)
+        expect(result["score"]).to eq(0.8125)
+        expect(result["children"]["address"]["score"]).to eq(0.625)
       end
     end
 
@@ -500,20 +517,22 @@ RSpec.describe EvalEngine::Types do
         expect(result["score"]).to eq(1.0)
       end
 
-      it "returns a partial score when one element mismatches" do
+      it "averages 1.0 + 0.25 (string-mismatch floor) + 1.0 when one element differs" do
         result = type.match(%w[a x c], %w[a b c])
-        expect(result["score"]).to be_within(0.01).of(2.0 / 3.0)
+        expect(result["score"]).to be_within(0.001).of(2.25 / 3.0)
       end
 
       it "scores 0.0 for missing elements when actual is shorter" do
+        # Index 0 matches (1.0), indexes 1 and 2 are missing-from-actual: nil-vs-string → 0.0 each.
         result = type.match(["a"], %w[a b c])
-        expect(result["score"]).to be_within(0.01).of(1.0 / 3.0)
+        expect(result["score"]).to be_within(0.001).of(1.0 / 3.0)
         expect(result["children"].length).to eq(3)
       end
 
       it "scores 0.0 for extra elements when actual is longer" do
+        # Index 0 matches, indexes 1 and 2 are string-vs-nil → 0.0 each.
         result = type.match(%w[a b c], ["a"])
-        expect(result["score"]).to be_within(0.01).of(1.0 / 3.0)
+        expect(result["score"]).to be_within(0.001).of(1.0 / 3.0)
       end
 
       it "returns 1.0 for two empty arrays" do
@@ -695,8 +714,9 @@ RSpec.describe EvalEngine::Types do
       builder.field(:age, :integer, weight: 1)
       hash_type = builder.build
 
+      # name matches (1.0, weight 3); age floors to 0.25 (weight 1) → (3.0 + 0.25) / 4 = 0.8125
       result = hash_type.match({ name: "Alice", age: 99 }, { name: "Alice", age: 30 })
-      expect(result["score"]).to eq(0.75)
+      expect(result["score"]).to eq(0.8125)
     end
 
     it "builds correctly with multiple field types" do

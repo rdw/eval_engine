@@ -13,20 +13,10 @@ module EvalEngine
       end
 
       def match(actual, expected)
-        return { "score" => 0.0 } if actual.nil? || expected.nil?
+        return { "score" => actual == expected ? 1.0 : 0.0 } if actual.nil? || expected.nil?
         return { "score" => 0.0 } unless actual.is_a?(Numeric) && expected.is_a?(Numeric)
 
-        diff = (actual - expected).abs
-        score =
-          if diff <= @tolerance
-            1.0
-          elsif @tolerance > 0
-            overage = diff - @tolerance
-            [1.0 - (overage.to_f / @tolerance), 0.0].max
-          else
-            0.0
-          end
-        { "score" => score }
+        { "score" => Types.tolerance_score((actual - expected).abs, @tolerance) }
       end
     end
   end

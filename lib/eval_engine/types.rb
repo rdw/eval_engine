@@ -11,6 +11,17 @@ require_relative "types/hash_type_builder"
 
 module EvalEngine
   module Types
+    # Within tolerance: 1.0.  Beyond tolerance: linear from 1.0 (at diff = tolerance)
+    # toward a 0.25 floor (at diff = 2 * tolerance and beyond).  When tolerance is 0,
+    # any non-zero diff scores 0.25 — being a number at all gets credit.  Mirrors the
+    # legacy Eval::Matcher::IntegerMatcher / FloatMatcher scoring.
+    def self.tolerance_score(diff, tolerance)
+      return 1.0 if diff <= tolerance
+
+      percent = tolerance > 0 ? [(diff - tolerance).to_f / tolerance, 1.0].min : 1.0
+      0.25 + (0.75 * (1.0 - percent))
+    end
+
     def self.build(type_name, **options, &block)
       case type_name
       when :hash

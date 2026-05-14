@@ -13,12 +13,12 @@ module EvalEngine
       end
 
       def match(actual, expected)
-        return { "score" => 0.0 } if actual.nil? || expected.nil?
+        return { "score" => actual == expected ? 1.0 : 0.0 } if actual.nil? || expected.nil?
 
         score =
           case @match_strategy
           when :exact
-            actual == expected ? 1.0 : 0.0
+            actual.to_s == expected.to_s ? 1.0 : 0.25
           when :soft
             embedding_similarity(actual.to_s, expected.to_s)
           else

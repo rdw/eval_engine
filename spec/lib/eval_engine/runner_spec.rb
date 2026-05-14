@@ -80,7 +80,7 @@ RSpec.describe EvalEngine::Runner do
       expect(matching).to be_completed
       expect(mismatching).to be_completed
       expect(matching.score).to eq(1.0)
-      expect(mismatching.score).to eq(0.0)
+      expect(mismatching.score).to eq(0.25)
     end
   end
 
@@ -230,7 +230,7 @@ RSpec.describe EvalEngine::Runner do
         .new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1)
         .run! { |row| yielded << [row.example_key, row.score] }
 
-      expect(yielded).to contain_exactly(["red", 1.0], ["blue", 0.0])
+      expect(yielded).to contain_exactly(["red", 1.0], ["blue", 0.25])
     end
 
     it "yields errored example rows too" do

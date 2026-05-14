@@ -146,13 +146,13 @@ RSpec.describe "E-bike manufacturer eval integration" do
 
     let(:regressed_instance) { regressed_eval_class.new(eval_root: tmp_dir) }
 
-    it "scores 0.0 for the amazon example when it returns marketplace instead of retailer" do
+    it "scores 0.25 for the amazon example when it returns marketplace instead of retailer" do
       amazon = examples.find { |ex| ex.key == "amazon" }
       actual = regressed_instance.generate(amazon.input)
       score_tree = output_type.match(actual, amazon.expected)
 
       expect(actual).to eq("marketplace")
-      expect(score_tree["score"]).to eq(0.0)
+      expect(score_tree["score"]).to eq(0.25)
     end
 
     it "still scores 1.0 for the unaffected manufacturer examples" do
@@ -166,7 +166,7 @@ RSpec.describe "E-bike manufacturer eval integration" do
       end
     end
 
-    it "computes an overall score of 0.75 with one regression" do
+    it "computes an overall score of 0.8125 with one regression (3 × 1.0 + 0.25 string-mismatch floor / 4)" do
       scores =
         examples.map do |ex|
           actual = regressed_instance.generate(ex.input)
@@ -174,7 +174,7 @@ RSpec.describe "E-bike manufacturer eval integration" do
         end
       overall = scores.sum / scores.length
 
-      expect(overall).to eq(0.75)
+      expect(overall).to eq(0.8125)
     end
   end
 
