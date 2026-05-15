@@ -43,7 +43,7 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
-  gem "solargraph", "~> 0.58.3"
+  gem "solargraph", "~> 0.59.0"
 end
 
 group :test do
