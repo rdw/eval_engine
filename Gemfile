@@ -31,7 +31,7 @@ group :development, :test do
   gem "rspec-expectations"
 
   # Debugging
-  gem "pry", "~> 0.15.2"
+  gem "pry", "~> 0.16.0"
 
   # Code formatting
   gem "syntax_tree", "~> 6.2"
