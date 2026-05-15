@@ -82,6 +82,53 @@ RSpec.describe EvalEngine::Types do
       end
     end
 
+    context "soft match with threshold" do
+      let(:fake_embeddings) do
+        {
+          "manufacturer" => [1.0, 0.0, 0.0],
+          "maker" => [0.9, 0.1, 0.0],
+          "retailer" => [0.0, 0.0, 1.0],
+          "hello" => [0.5, 0.5, 0.0]
+        }
+      end
+
+      before do
+        @original_embedding_fn = EvalEngine.configuration.embedding_fn
+        EvalEngine.configure { |c| c.embedding_fn = ->(text) { fake_embeddings.fetch(text, [0.0, 0.0, 0.0]) } }
+      end
+
+      after { EvalEngine.configuration.embedding_fn = @original_embedding_fn }
+
+      it "binarizes to 1.0 when similarity meets the threshold" do
+        type = described_class.new(match: :soft, threshold: 0.8)
+        # manufacturer vs maker has cosine ~0.994
+        expect(type.match("manufacturer", "maker")["score"]).to eq(1.0)
+      end
+
+      it "binarizes to 0.0 when similarity is below the threshold" do
+        type = described_class.new(match: :soft, threshold: 0.8)
+        # manufacturer vs hello has cosine ~0.707
+        expect(type.match("manufacturer", "hello")["score"]).to eq(0.0)
+      end
+
+      it "binarizes to 1.0 at exactly the threshold" do
+        type = described_class.new(match: :soft, threshold: 0.7)
+        # manufacturer vs hello has cosine ~0.707, just above 0.7
+        expect(type.match("manufacturer", "hello")["score"]).to eq(1.0)
+      end
+
+      it "still returns 1.0 for identical strings" do
+        type = described_class.new(match: :soft, threshold: 0.99)
+        expect(type.match("manufacturer", "manufacturer")["score"]).to eq(1.0)
+      end
+
+      it "preserves nil handling regardless of threshold" do
+        type = described_class.new(match: :soft, threshold: 0.5)
+        expect(type.match(nil, "hello")["score"]).to eq(0.0)
+        expect(type.match(nil, nil)["score"]).to eq(1.0)
+      end
+    end
+
     context "validation" do
       subject(:type) { described_class.new }
 

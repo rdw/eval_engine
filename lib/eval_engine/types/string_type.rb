@@ -1,9 +1,10 @@
 module EvalEngine
   module Types
     class StringType < Base
-      def initialize(match: :exact, weight: 1)
+      def initialize(match: :exact, threshold: nil, weight: 1)
         super(weight: weight)
         @match_strategy = match
+        @threshold = threshold
       end
 
       def validate(value)
@@ -20,7 +21,8 @@ module EvalEngine
           when :exact
             actual.to_s == expected.to_s ? 1.0 : 0.25
           when :soft
-            embedding_similarity(actual.to_s, expected.to_s)
+            similarity = embedding_similarity(actual.to_s, expected.to_s)
+            @threshold ? (similarity < @threshold ? 0.0 : 1.0) : similarity
           else
             raise ArgumentError, "Unknown match strategy: #{@match_strategy}"
           end
