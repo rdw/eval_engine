@@ -57,6 +57,13 @@ module EvalEngine
       seconds < 60 ? format("%.1fs", seconds) : format("%dm %ds", seconds / 60, seconds % 60)
     end
 
+    def sort_link(column, label, eval_name:, current_sort:, current_dir:)
+      active = current_sort == column.to_s
+      next_dir = active && current_dir == "asc" ? "desc" : "asc"
+      arrow = active ? (current_dir == "desc" ? " ↓" : " ↑") : ""
+      link_to "#{label}#{arrow}", eval_path(eval_name, sort: column, dir: next_dir), class: "ee-sort-link"
+    end
+
     def example_duration(run_example)
       return "—" unless run_example&.started_at && run_example&.finished_at
 

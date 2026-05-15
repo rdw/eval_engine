@@ -92,6 +92,67 @@ RSpec.describe "EvalEngine::Evals", type: :request do
       expect(response).to have_http_status(:not_found)
       expect(response.body).to include("does_not_exist")
     end
+
+    describe "examples table sorting" do
+      def example_keys_in_order(body)
+        body.scan(%r{href="/eval_engine/is_ebike_manufacturer/examples/([^"]+)"}).flatten
+      end
+
+      it "defaults to sorting by key ascending" do
+        get "/eval_engine/is_ebike_manufacturer"
+
+        expect(example_keys_in_order(response.body)).to eq(%w[amazon blixbike heybike lectricebikes])
+      end
+
+      it "reverses the order when ?sort=key&dir=desc" do
+        get "/eval_engine/is_ebike_manufacturer", params: { sort: "key", dir: "desc" }
+
+        expect(example_keys_in_order(response.body)).to eq(%w[lectricebikes heybike blixbike amazon])
+      end
+
+      it "sorts by score descending and pushes nil-score rows to the end" do
+        run =
+          EvalEngine::Run.create!(
+            eval_name: "is_ebike_manufacturer",
+            status: :completed,
+            started_at: 1.minute.ago,
+            finished_at: Time.current
+          )
+        EvalEngine::RunExample.create!(
+          run: run,
+          example_key: "amazon",
+          status: :completed,
+          score: 0.25,
+          finished_at: Time.current
+        )
+        EvalEngine::RunExample.create!(
+          run: run,
+          example_key: "blixbike",
+          status: :completed,
+          score: 1.0,
+          finished_at: Time.current
+        )
+
+        get "/eval_engine/is_ebike_manufacturer", params: { sort: "score", dir: "desc" }
+
+        keys = example_keys_in_order(response.body)
+        expect(keys.first(2)).to eq(%w[blixbike amazon])
+        expect(keys.last(2)).to contain_exactly("heybike", "lectricebikes")
+      end
+
+      it "falls back to key when given an unknown sort column" do
+        get "/eval_engine/is_ebike_manufacturer", params: { sort: "garbage" }
+
+        expect(example_keys_in_order(response.body)).to eq(%w[amazon blixbike heybike lectricebikes])
+      end
+
+      it "links each header to the next sort direction" do
+        get "/eval_engine/is_ebike_manufacturer", params: { sort: "score", dir: "asc" }
+
+        expect(response.body).to include('href="/eval_engine/is_ebike_manufacturer?dir=desc&amp;sort=score"')
+        expect(response.body).to include('href="/eval_engine/is_ebike_manufacturer?dir=asc&amp;sort=key"')
+      end
+    end
   end
 
   describe "POST /:name/rescore" do

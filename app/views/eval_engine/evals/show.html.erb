@@ -25,32 +25,32 @@
 </section>
 
 <section class="ee-section">
-  <h2>Examples (<%= @examples.length %>)</h2>
-  <% if @examples.empty? %>
+  <h2>Examples (<%= @example_rows.length %>)</h2>
+  <% if @example_rows.empty? %>
     <p class="ee-empty">No examples yet.</p>
   <% else %>
+    <% sort_args = { eval_name: @eval_name, current_sort: @sort_column, current_dir: @sort_direction } %>
     <table class="ee-table">
       <thead>
         <tr>
-          <th>Key</th>
-          <th>Status</th>
-          <th class="ee-table__num">Score</th>
-          <th class="ee-table__num">Duration</th>
-          <th>Last run</th>
+          <th><%= sort_link("key", "Key", **sort_args) %></th>
+          <th><%= sort_link("status", "Status", **sort_args) %></th>
+          <th class="ee-table__num"><%= sort_link("score", "Score", **sort_args) %></th>
+          <th class="ee-table__num"><%= sort_link("duration", "Duration", **sort_args) %></th>
+          <th><%= sort_link("last_run_at", "Last run", **sort_args) %></th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        <% @examples.each do |example| %>
-          <% latest_row = @latest_results_by_key[example.key] %>
+        <% @example_rows.each do |row| %>
           <tr>
-            <td><%= link_to example.key, eval_example_path(@eval_name, example.key) %></td>
-            <td><%= example_status_pill(latest_row) %></td>
-            <td class="ee-table__num"><%= example_score_cell(latest_row) %></td>
-            <td class="ee-table__num"><%= example_duration(latest_row) %></td>
-            <td><%= latest_row&.finished_at&.iso8601 || "—" %></td>
+            <td><%= link_to row[:key], eval_example_path(@eval_name, row[:key]) %></td>
+            <td><%= example_status_pill(row[:latest]) %></td>
+            <td class="ee-table__num"><%= example_score_cell(row[:latest]) %></td>
+            <td class="ee-table__num"><%= example_duration(row[:latest]) %></td>
+            <td><%= row[:last_run_at]&.iso8601 || "—" %></td>
             <td class="ee-table__num">
-              <%= button_to "Run", eval_runs_path(@eval_name, only: example.key), method: :post, class: "ee-btn ee-btn--small" %>
+              <%= button_to "Run", eval_runs_path(@eval_name, only: row[:key]), method: :post, class: "ee-btn ee-btn--small" %>
             </td>
           </tr>
         <% end %>
