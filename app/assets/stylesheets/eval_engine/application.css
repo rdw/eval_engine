@@ -124,6 +124,8 @@ h2 { font-size: 16px; margin: 0 0 12px; color: var(--ee-fg-muted); text-transfor
 .ee-pill--running { background: var(--ee-pill-running); }
 .ee-pill--completed { background: var(--ee-pill-completed); }
 .ee-pill--failed { background: var(--ee-pill-failed); }
+.ee-pill--errored { background: var(--ee-pill-failed); }
+.ee-pill--missing { background: var(--ee-score-missing); }
 
 .ee-page-header {
   display: flex;
@@ -193,16 +195,35 @@ h2 { font-size: 16px; margin: 0 0 12px; color: var(--ee-fg-muted); text-transfor
   border-color: #fecaca;
 }
 
-.ee-preview {
+.ee-codeblock {
   font-family: ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 12px;
-  color: var(--ee-fg-muted);
-  background: var(--ee-bg);
-  padding: 1px 4px;
-  border-radius: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 320px;
-  display: inline-block;
+  background: var(--ee-bg-card);
+  border: 1px solid var(--ee-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
+.ee-codeblock--error {
+  color: #7f1d1d;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.ee-diff td { vertical-align: top; }
+.ee-diff__value {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 380px;
+}
+.ee-diff__missing {
+  color: var(--ee-score-missing);
+  font-style: italic;
+}
+

@@ -57,10 +57,84 @@ module EvalEngine
       seconds < 60 ? format("%.1fs", seconds) : format("%dm %ds", seconds / 60, seconds % 60)
     end
 
-    def preview(value, limit: 80)
-      str = value.is_a?(String) ? value : value.to_json
-      str = "#{str[0, limit]}…" if str.length > limit
-      tag.code(str, class: "ee-preview")
+    def example_duration(run_example)
+      return "—" unless run_example&.started_at && run_example&.finished_at
+
+      seconds = run_example.finished_at - run_example.started_at
+      seconds < 1 ? format("%dms", (seconds * 1000).round) : format("%.2fs", seconds)
+    end
+
+    def example_status_pill(run_example)
+      return tag.span("not yet run", class: "ee-pill ee-pill--missing") if run_example.nil?
+
+      status_pill(run_example.status)
+    end
+
+    def diff_rows(score_tree, expected, output)
+      return [] if score_tree.nil?
+
+      rows = []
+      walk_diff(rows, "", score_tree, expected, output)
+      rows
+    end
+
+    def format_diff_value(value)
+      return tag.span("—", class: "ee-diff__missing") if value.nil?
+
+      str = value.is_a?(String) ? value : JSON.pretty_generate(value)
+      tag.pre(str, class: "ee-diff__value")
+    end
+
+    def diff_row_color(score)
+      return "hsl(0, 0%, 95%)" if score.nil?
+
+      clamped = score.to_f.clamp(0.25, 1.0)
+      hue = 120 * (clamped - 0.25) / 0.75
+      "hsl(#{hue.round(1)}, 70%, 92%)"
+    end
+
+    def format_json_block(value)
+      return tag.span("(none)", class: "ee-empty") if value.nil?
+
+      str = value.is_a?(String) ? value : JSON.pretty_generate(value)
+      tag.pre(str, class: "ee-codeblock")
+    end
+
+    private
+
+    def walk_diff(rows, path, node, expected, output)
+      children = node["children"]
+      if children.is_a?(Hash)
+        walk_hash_children(rows, path, children, expected, output)
+      elsif children.is_a?(Array)
+        walk_array_children(rows, path, node, expected, output)
+      else
+        rows << { path: path.empty? ? "(value)" : path, score: node["score"], expected: expected, output: output }
+      end
+    end
+
+    def walk_hash_children(rows, path, children, expected, output)
+      children.each do |key, child|
+        child_path = path.empty? ? key : "#{path}.#{key}"
+        walk_diff(rows, child_path, child, dig_indifferent(expected, key), dig_indifferent(output, key))
+      end
+    end
+
+    def walk_array_children(rows, path, node, expected, output)
+      alignment = node["alignment"]
+      node["children"].each_with_index do |child, i|
+        e_idx, a_idx = alignment ? [alignment[i]["expected"], alignment[i]["actual"]] : [i, i]
+        e_val = e_idx && expected.is_a?(Array) ? expected[e_idx] : nil
+        a_val = a_idx && output.is_a?(Array) ? output[a_idx] : nil
+        walk_diff(rows, "#{path}[#{i}]", child, e_val, a_val)
+      end
+    end
+
+    def dig_indifferent(value, key)
+      return nil unless value.is_a?(Hash)
+      return value[key] if value.key?(key)
+
+      value[key.to_sym] if key.is_a?(String)
     end
   end
 end

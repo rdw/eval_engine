@@ -33,9 +33,10 @@
       <thead>
         <tr>
           <th>Key</th>
-          <th>Input</th>
-          <th>Expected</th>
-          <th class="ee-table__num">Latest score</th>
+          <th>Status</th>
+          <th class="ee-table__num">Score</th>
+          <th class="ee-table__num">Duration</th>
+          <th>Last run</th>
           <th></th>
         </tr>
       </thead>
@@ -43,10 +44,11 @@
         <% @examples.each do |example| %>
           <% latest_row = @latest_results_by_key[example.key] %>
           <tr>
-            <td><%= example.key %></td>
-            <td><%= preview(example.input) %></td>
-            <td><%= preview(example.expected) %></td>
+            <td><%= link_to example.key, eval_example_path(@eval_name, example.key) %></td>
+            <td><%= example_status_pill(latest_row) %></td>
             <td class="ee-table__num"><%= example_score_cell(latest_row) %></td>
+            <td class="ee-table__num"><%= example_duration(latest_row) %></td>
+            <td><%= latest_row&.finished_at&.iso8601 || "—" %></td>
             <td class="ee-table__num">
               <%= button_to "Run", eval_runs_path(@eval_name, only: example.key), method: :post, class: "ee-btn ee-btn--small" %>
             </td>

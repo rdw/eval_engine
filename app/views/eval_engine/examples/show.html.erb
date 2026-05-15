@@ -1,0 +1,99 @@
+<nav class="ee-breadcrumb">
+  <%= link_to "Evals", root_path %>
+  /
+  <%= link_to @eval_name, eval_path(@eval_name) %>
+  /
+  <%= @example_key %>
+</nav>
+
+<div class="ee-page-header">
+  <h1><%= @example_key %></h1>
+  <div class="ee-actions">
+    <%= button_to "Run this example", eval_runs_path(@eval_name, only: @example_key), method: :post, class: "ee-btn ee-btn--primary" %>
+  </div>
+</div>
+
+<% if @latest.nil? %>
+  <section class="ee-section">
+    <p class="ee-empty">No runs yet for this example.</p>
+  </section>
+<% elsif @latest.errored? %>
+  <section class="ee-section">
+    <h2>Latest run errored</h2>
+    <pre class="ee-codeblock ee-codeblock--error"><%= @latest.error %></pre>
+  </section>
+<% else %>
+  <section class="ee-section">
+    <h2>Diff (latest score: <%= example_score_cell(@latest) %>)</h2>
+    <% rows = diff_rows(@latest.score_tree, @example.expected, @latest.output) %>
+    <% if rows.empty? %>
+      <p class="ee-empty">No diff available.</p>
+    <% else %>
+      <table class="ee-table ee-diff">
+        <thead>
+          <tr>
+            <th>Path</th>
+            <th>Expected</th>
+            <th>Output</th>
+            <th class="ee-table__num">Score</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% rows.each do |row| %>
+            <tr style="background-color: <%= diff_row_color(row[:score]) %>">
+              <td><code><%= row[:path] %></code></td>
+              <td><%= format_diff_value(row[:expected]) %></td>
+              <td><%= format_diff_value(row[:output]) %></td>
+              <td class="ee-table__num"><%= format_score(row[:score]) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    <% end %>
+  </section>
+<% end %>
+
+<section class="ee-section">
+  <h2>Input</h2>
+  <%= format_json_block(@example.input) %>
+</section>
+
+<section class="ee-section">
+  <h2>Expected</h2>
+  <%= format_json_block(@example.expected) %>
+</section>
+
+<% if @latest && !@latest.errored? %>
+  <section class="ee-section">
+    <h2>Latest output</h2>
+    <%= format_json_block(@latest.output) %>
+  </section>
+<% end %>
+
+<section class="ee-section">
+  <h2>History (<%= @history.length %>)</h2>
+  <% if @history.empty? %>
+    <p class="ee-empty">No runs yet.</p>
+  <% else %>
+    <table class="ee-table">
+      <thead>
+        <tr>
+          <th>Started</th>
+          <th>Status</th>
+          <th class="ee-table__num">Score</th>
+          <th class="ee-table__num">Duration</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @history.each do |re| %>
+          <tr>
+            <td><%= re.started_at&.iso8601 %></td>
+            <td><%= status_pill(re.status) %></td>
+            <td class="ee-table__num"><%= example_score_cell(re) %></td>
+            <td class="ee-table__num"><%= example_duration(re) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</section>
