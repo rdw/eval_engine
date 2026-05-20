@@ -544,3 +544,4 @@ Client code is authored in TypeScript and built with Vite.  However, the initial
 4. **CLI** — Thor-based `exe/eval-cli` executable with verb-first subcommands.  Initial scope: `list`, `run`, `promote`; score-display + `rescore` land with the scoring task.
 5. **Scoring queries** — the "latest score" and "checkpoint score" computations from the plan; unblocks `show`, `debug`, `rescore` in the CLI.
 6. **UI** — Rails controllers/views for index + eval detail pages.
+7. **Edit Examples** — a UI for adding new examples, editing the inputs and expecteds of existing examples (validate types and YAML parseability before saving to disk!).  This is mostly intended for small tweaks not full-blown authoring.

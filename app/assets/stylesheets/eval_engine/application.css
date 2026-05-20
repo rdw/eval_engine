@@ -95,6 +95,21 @@ h2 { font-size: 16px; margin: 0 0 12px; color: var(--ee-fg-muted); text-transfor
 .ee-table tbody tr:last-child td { border-bottom: none; }
 .ee-table__num { text-align: right; font-variant-numeric: tabular-nums; }
 
+.ee-table tbody tr.ee-row--current td { background: #eef2ff; font-weight: 600; }
+.ee-link--current { color: var(--ee-fg-muted); font-weight: 600; }
+.ee-table tbody tr.ee-row--muted td { color: var(--ee-fg-muted); opacity: 0.6; }
+
+.ee-disclosure__summary {
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--ee-fg-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+details[open] > .ee-disclosure__summary { margin-bottom: 12px; }
+
 .ee-section { margin-top: 28px; }
 
 .ee-summary {
@@ -118,6 +133,16 @@ h2 { font-size: 16px; margin: 0 0 12px; color: var(--ee-fg-muted); text-transfor
 .ee-score--low { color: var(--ee-score-low); }
 .ee-score--missing { color: var(--ee-score-missing); font-weight: 400; font-style: italic; }
 .ee-score--error { color: var(--ee-score-low); font-weight: 600; }
+
+.ee-delta {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ee-fg);
+}
 
 .ee-pill {
   display: inline-block;

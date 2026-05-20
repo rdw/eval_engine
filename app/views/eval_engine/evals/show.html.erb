@@ -25,11 +25,18 @@
 </section>
 
 <section class="ee-section">
-  <h2>Examples (<%= @example_rows.length %>)</h2>
+  <h2>
+    Examples (<%= @example_rows.length %>)
+    <% if @selected_run %>
+      — showing run started <%= @selected_run.started_at&.iso8601 %>
+      (<%= link_to "show latest", eval_path(@eval_name) %>)
+    <% end %>
+  </h2>
   <% if @example_rows.empty? %>
     <p class="ee-empty">No examples yet.</p>
   <% else %>
     <% sort_args = { eval_name: @eval_name, current_sort: @sort_column, current_dir: @sort_direction } %>
+    <% example_link_params = @selected_run ? { run_id: @selected_run.id } : {} %>
     <table class="ee-table">
       <thead>
         <tr>
@@ -43,9 +50,15 @@
       </thead>
       <tbody>
         <% @example_rows.each do |row| %>
-          <tr>
-            <td><%= link_to row[:key], eval_example_path(@eval_name, row[:key]) %></td>
-            <td><%= example_status_pill(row[:latest]) %></td>
+          <tr class="<%= "ee-row--muted" unless row[:in_run] %>">
+            <td><%= link_to row[:key], eval_example_path(@eval_name, row[:key], **example_link_params) %></td>
+            <td>
+              <% if row[:in_run] %>
+                <%= example_status_pill(row[:latest]) %>
+              <% else %>
+                <span class="ee-pill ee-pill--missing">not in this run</span>
+              <% end %>
+            </td>
             <td class="ee-table__num"><%= example_score_cell(row[:latest]) %></td>
             <td class="ee-table__num"><%= example_duration(row[:latest]) %></td>
             <td><%= row[:last_run_at]&.iso8601 || "—" %></td>
@@ -78,8 +91,16 @@
       </thead>
       <tbody>
         <% @runs.each do |run| %>
-          <tr>
-            <td><%= run.started_at&.iso8601 %></td>
+          <% is_current = @selected_run && run.id == @selected_run.id %>
+          <tr class="<%= "ee-row--current" if is_current %>">
+            <td>
+              <% started = run.started_at&.iso8601 %>
+              <% if is_current %>
+                <span class="ee-link--current"><%= started %></span>
+              <% else %>
+                <%= link_to started, eval_path(@eval_name, run_id: run.id) %>
+              <% end %>
+            </td>
             <td><%= status_pill(run.status) %></td>
             <td class="ee-table__num"><%= run.example_count %></td>
             <td class="ee-table__num"><%= format_score(run.run_examples.average(:score)) %></td>

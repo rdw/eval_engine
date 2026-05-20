@@ -20,11 +20,17 @@ module EvalEngine
       @checkpoint = EvalEngine.checkpoint_score(@eval_name)
       @runs = Run.where(eval_name: @eval_name).order(started_at: :desc).limit(20)
       @checkpoint_record = Checkpoint.find_by(eval_name: @eval_name)
+      @selected_run = @runs.find { |r| r.id.to_s == params[:run_id].to_s } if params[:run_id].present?
+      if params[:run_id].present? && @selected_run.nil?
+        return render plain: "Run not found: #{params[:run_id]}", status: :not_found
+      end
 
-      latest_by_key = @latest.per_example.index_by(&:example_key)
+      run_examples_source = @selected_run ? @selected_run.run_examples : @latest.per_example
+      run_examples_by_key = run_examples_source.index_by(&:example_key)
       @sort_column = SORTABLE_EXAMPLE_COLUMNS.include?(params[:sort]) ? params[:sort] : "key"
       @sort_direction = params[:dir] == "desc" ? "desc" : "asc"
-      @example_rows = sort_example_rows(build_example_rows(examples, latest_by_key), @sort_column, @sort_direction)
+      rows = build_example_rows(examples, run_examples_by_key, filtered_by_run: @selected_run.present?)
+      @example_rows = sort_example_rows(rows, @sort_column, @sort_direction)
     end
 
     def rescore
@@ -50,17 +56,19 @@ module EvalEngine
       parts.join(" ")
     end
 
-    def build_example_rows(examples, latest_by_key)
+    def build_example_rows(examples, run_examples_by_key, filtered_by_run:)
       examples.map do |example|
-        latest = latest_by_key[example.key]
+        run_example = run_examples_by_key[example.key]
+        in_run = !filtered_by_run || run_example.present?
         {
           example: example,
-          latest: latest,
+          latest: run_example,
+          in_run: in_run,
           key: example.key,
-          status: latest&.status || "missing",
-          score: latest&.score,
-          duration: example_seconds(latest),
-          last_run_at: latest&.finished_at
+          status: run_example&.status || (filtered_by_run ? "skipped" : "missing"),
+          score: run_example&.score,
+          duration: example_seconds(run_example),
+          last_run_at: run_example&.finished_at
         }
       end
     end

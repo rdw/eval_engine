@@ -43,6 +43,66 @@ RSpec.describe "EvalEngine::Evals", type: :request do
 
       expect(response.body).to include("1.000")
     end
+
+    describe "checkpoint-vs-latest delta column" do
+      def seed_run(score:, at: Time.current)
+        run =
+          EvalEngine::Run.create!(
+            eval_name: "is_ebike_manufacturer",
+            status: :completed,
+            started_at: at - 1.second,
+            finished_at: at
+          )
+        EvalEngine::RunExample.create!(
+          run: run,
+          example_key: "amazon",
+          status: :completed,
+          score: score,
+          finished_at: at
+        )
+        run
+      end
+
+      it "renders a negative delta with a red background that grows brighter with magnitude" do
+        seed_run(score: 1.0, at: 10.minutes.ago)
+        EvalEngine::Checkpoint.create!(eval_name: "is_ebike_manufacturer", checkpointed_at: 5.minutes.ago)
+        seed_run(score: 0.25, at: 1.minute.ago)
+
+        get "/eval_engine/"
+
+        expect(response.body).to include("-0.75")
+        expect(response.body).to match(/hsl\(0,[^"]*"/)
+      end
+
+      it "renders a positive delta with a green background that grows brighter with magnitude" do
+        seed_run(score: 0.25, at: 10.minutes.ago)
+        EvalEngine::Checkpoint.create!(eval_name: "is_ebike_manufacturer", checkpointed_at: 5.minutes.ago)
+        seed_run(score: 1.0, at: 1.minute.ago)
+
+        get "/eval_engine/"
+
+        expect(response.body).to include("+0.75")
+        expect(response.body).to match(/hsl\(120,[^"]*"/)
+      end
+
+      it "omits the delta entirely when the absolute difference is below 0.01" do
+        seed_run(score: 1.0, at: 10.minutes.ago)
+        EvalEngine::Checkpoint.create!(eval_name: "is_ebike_manufacturer", checkpointed_at: 5.minutes.ago)
+        seed_run(score: 0.999, at: 1.minute.ago)
+
+        get "/eval_engine/"
+
+        expect(response.body).not_to include("ee-delta")
+      end
+
+      it "omits the delta when there is no checkpoint to compare against" do
+        seed_run(score: 1.0)
+
+        get "/eval_engine/"
+
+        expect(response.body).not_to include("ee-delta")
+      end
+    end
   end
 
   describe "GET /:name" do
@@ -151,6 +211,64 @@ RSpec.describe "EvalEngine::Evals", type: :request do
 
         expect(response.body).to include('href="/eval_engine/is_ebike_manufacturer?dir=desc&amp;sort=score"')
         expect(response.body).to include('href="/eval_engine/is_ebike_manufacturer?dir=asc&amp;sort=key"')
+      end
+    end
+
+    describe "selecting a previous run" do
+      def seed_partial_run(keys:, score: 1.0, at: 1.minute.ago)
+        run =
+          EvalEngine::Run.create!(
+            eval_name: "is_ebike_manufacturer",
+            status: :completed,
+            started_at: at - 1.second,
+            finished_at: at
+          )
+        keys.each do |key|
+          EvalEngine::RunExample.create!(
+            run: run,
+            example_key: key,
+            status: :completed,
+            score: score,
+            finished_at: at,
+            started_at: at - 1.second
+          )
+        end
+        run
+      end
+
+      it "links each row in the recent runs table back to the eval show with run_id" do
+        run = seed_partial_run(keys: %w[amazon blixbike])
+
+        get "/eval_engine/is_ebike_manufacturer"
+
+        expect(response.body).to include("href=\"/eval_engine/is_ebike_manufacturer?run_id=#{run.id}\"")
+      end
+
+      it "filters the examples table to the selected run and greys out the others" do
+        run = seed_partial_run(keys: %w[amazon])
+
+        get "/eval_engine/is_ebike_manufacturer", params: { run_id: run.id }
+
+        expect(response.body).to include("showing run started")
+        expect(response.body).to include("ee-row--muted")
+        expect(response.body).to include("not in this run")
+        expect(response.body).to include("href=\"/eval_engine/is_ebike_manufacturer/examples/amazon?run_id=#{run.id}\"")
+      end
+
+      it "marks the selected run's row in recent runs and disables its link" do
+        run = seed_partial_run(keys: %w[amazon])
+
+        get "/eval_engine/is_ebike_manufacturer", params: { run_id: run.id }
+
+        expect(response.body).to include("ee-row--current")
+        expect(response.body).to include("ee-link--current")
+        expect(response.body).not_to include("href=\"/eval_engine/is_ebike_manufacturer?run_id=#{run.id}\"")
+      end
+
+      it "404s when the requested run_id is not in this eval's recent runs" do
+        get "/eval_engine/is_ebike_manufacturer", params: { run_id: 999_999 }
+
+        expect(response).to have_http_status(:not_found)
       end
     end
   end

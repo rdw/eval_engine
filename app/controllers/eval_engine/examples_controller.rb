@@ -8,8 +8,11 @@ module EvalEngine
       @example = find_example(@eval_name, @example_key)
       return render plain: "Example not found: #{@example_key}", status: :not_found unless @example
 
-      @latest = latest_run_example_for(@eval_name, @example_key)
       @history = history_for(@eval_name, @example_key)
+      @selected = pick_selected_run_example(@history, params[:run_id])
+      return if @selected || params[:run_id].blank?
+
+      render plain: "Run not found for this example: #{params[:run_id]}", status: :not_found
     end
 
     private
@@ -23,13 +26,10 @@ module EvalEngine
       Example.load_all(dir).find { |ex| ex.key == key }
     end
 
-    def latest_run_example_for(eval_name, key)
-      RunExample
-        .joins(:run)
-        .where(eval_engine_runs: { eval_name: eval_name }, example_key: key)
-        .where.not(finished_at: nil)
-        .order(finished_at: :desc)
-        .first
+    def pick_selected_run_example(history, run_id)
+      return history.find { |re| re.run_id.to_s == run_id.to_s } if run_id.present?
+
+      history.find { |re| re.finished_at.present? }
     end
 
     def history_for(eval_name, key)

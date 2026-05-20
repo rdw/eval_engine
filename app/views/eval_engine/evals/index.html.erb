@@ -10,8 +10,9 @@
       <tr>
         <th>Name</th>
         <th class="ee-table__num">Examples</th>
-        <th class="ee-table__num">Latest</th>
         <th class="ee-table__num">Checkpoint</th>
+        <th class="ee-table__num">Δ</th>
+        <th class="ee-table__num">Latest</th>
       </tr>
     </thead>
     <tbody>
@@ -19,8 +20,9 @@
         <tr>
           <td><%= link_to row[:name], eval_path(row[:name]) %></td>
           <td class="ee-table__num"><%= example_total(row[:latest]) %></td>
-          <td class="ee-table__num"><%= score_cell(row[:latest]) %></td>
           <td class="ee-table__num"><%= score_cell(row[:checkpoint]) %></td>
+          <td class="ee-table__num"><%= delta_cell(row[:latest], row[:checkpoint]) %></td>
+          <td class="ee-table__num"><%= score_cell(row[:latest]) %></td>
         </tr>
       <% end %>
     </tbody>

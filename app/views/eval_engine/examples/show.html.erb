@@ -13,19 +13,19 @@
   </div>
 </div>
 
-<% if @latest.nil? %>
+<% if @selected.nil? %>
   <section class="ee-section">
     <p class="ee-empty">No runs yet for this example.</p>
   </section>
-<% elsif @latest.errored? %>
+<% elsif @selected.errored? %>
   <section class="ee-section">
-    <h2>Latest run errored</h2>
-    <pre class="ee-codeblock ee-codeblock--error"><%= @latest.error %></pre>
+    <h2>Run errored (<%= @selected.started_at&.iso8601 %>)</h2>
+    <pre class="ee-codeblock ee-codeblock--error"><%= @selected.error %></pre>
   </section>
 <% else %>
   <section class="ee-section">
-    <h2>Diff (latest score: <%= example_score_cell(@latest) %>)</h2>
-    <% rows = diff_rows(@latest.score_tree, @example.expected, @latest.output) %>
+    <h2>Diff (score: <%= example_score_cell(@selected) %>, ran <%= @selected.started_at&.iso8601 %>)</h2>
+    <% rows = diff_rows(@selected.score_tree, @example.expected, @selected.output) %>
     <% if rows.empty? %>
       <p class="ee-empty">No diff available.</p>
     <% else %>
@@ -54,19 +54,25 @@
 <% end %>
 
 <section class="ee-section">
-  <h2>Input</h2>
-  <%= format_json_block(@example.input) %>
+  <details class="ee-disclosure">
+    <summary class="ee-disclosure__summary">Input</summary>
+    <%= format_json_block(@example.input) %>
+  </details>
 </section>
 
 <section class="ee-section">
-  <h2>Expected</h2>
-  <%= format_json_block(@example.expected) %>
+  <details class="ee-disclosure">
+    <summary class="ee-disclosure__summary">Expected</summary>
+    <%= format_json_block(@example.expected) %>
+  </details>
 </section>
 
-<% if @latest && !@latest.errored? %>
+<% if @selected && !@selected.errored? %>
   <section class="ee-section">
-    <h2>Latest output</h2>
-    <%= format_json_block(@latest.output) %>
+    <details class="ee-disclosure">
+      <summary class="ee-disclosure__summary">Output</summary>
+      <%= format_json_block(@selected.output) %>
+    </details>
   </section>
 <% end %>
 
@@ -86,8 +92,16 @@
       </thead>
       <tbody>
         <% @history.each do |re| %>
-          <tr>
-            <td><%= re.started_at&.iso8601 %></td>
+          <% is_current = @selected && re.id == @selected.id %>
+          <tr class="<%= "ee-row--current" if is_current %>">
+            <td>
+              <% started = re.started_at&.iso8601 %>
+              <% if is_current %>
+                <span class="ee-link--current"><%= started %></span>
+              <% else %>
+                <%= link_to started, eval_example_path(@eval_name, @example_key, run_id: re.run_id) %>
+              <% end %>
+            </td>
             <td><%= status_pill(re.status) %></td>
             <td class="ee-table__num"><%= example_score_cell(re) %></td>
             <td class="ee-table__num"><%= example_duration(re) %></td>

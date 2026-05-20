@@ -57,6 +57,25 @@ module EvalEngine
       seconds < 60 ? format("%.1fs", seconds) : format("%dm %ds", seconds / 60, seconds % 60)
     end
 
+    DELTA_NOISE_FLOOR = 0.01
+
+    def delta_cell(latest, checkpoint)
+      return "" if latest.nil? || checkpoint.nil? || latest.mean.nil? || checkpoint.mean.nil?
+
+      delta = latest.mean - checkpoint.mean
+      return "" if delta.abs < DELTA_NOISE_FLOOR
+
+      tag.span(format("%+.2f", delta), class: "ee-delta", style: "background-color: #{delta_color(delta)}")
+    end
+
+    def delta_color(delta)
+      hue = delta.positive? ? 120 : 0
+      magnitude = delta.abs.clamp(0.0, 1.0)
+      saturation = 30 + (magnitude * 50)
+      lightness = 92 - (magnitude * 12)
+      "hsl(#{hue}, #{saturation.round(1)}%, #{lightness.round(1)}%)"
+    end
+
     def sort_link(column, label, eval_name:, current_sort:, current_dir:)
       active = current_sort == column.to_s
       next_dir = active && current_dir == "asc" ? "desc" : "asc"
