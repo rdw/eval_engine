@@ -1,0 +1,17 @@
+<% example_link_params ||= {} %>
+<%= tag.tr id: dom_id_for_example_row(row[:key]), class: ("ee-row--muted" unless row[:in_run]) do %>
+  <td><%= link_to row[:key], eval_example_path(eval_name, row[:key], **example_link_params) %></td>
+  <td>
+    <% if row[:in_run] %>
+      <%= example_status_pill(row[:latest]) %>
+    <% else %>
+      <span class="ee-pill ee-pill--missing">not in this run</span>
+    <% end %>
+  </td>
+  <td class="ee-table__num"><%= example_score_cell(row[:latest]) %></td>
+  <td class="ee-table__num"><%= example_duration(row[:latest]) %></td>
+  <td><%= row[:last_run_at]&.iso8601 || "—" %></td>
+  <td class="ee-table__num">
+    <%= button_to "Run", eval_runs_path(eval_name, only: row[:key]), method: :post, class: "ee-btn ee-btn--small" %>
+  </td>
+<% end %>

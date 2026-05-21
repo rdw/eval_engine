@@ -19,31 +19,44 @@ module EvalEngine
       @callback_mutex = Mutex.new
     end
 
-    def run!(&on_example_finished)
-      raise ArgumentError, "#{@eval_class.name} must declare an input_type" unless @eval_class.input_type
-      raise ArgumentError, "#{@eval_class.name} must declare an output_type" unless @eval_class.output_type
+    def start!
+      @examples = prepare_examples
+      Run.create!(
+        eval_name: @eval_class.eval_name,
+        status: :running,
+        started_at: Time.current,
+        example_count: @examples.length
+      )
+    end
 
+    def execute!(run, &on_example_finished)
       @on_example_finished = on_example_finished
-
-      examples = load_examples
-      examples = examples.select { |ex| @only.include?(ex.key) } if @only
-
-      validate_examples!(examples)
-
-      run =
-        Run.create!(
-          eval_name: @eval_class.eval_name,
-          status: :running,
-          started_at: Time.current,
-          example_count: examples.length
-        )
+      examples = @examples || prepare_examples
 
       execute_examples(run, examples)
       run.update!(status: :completed, finished_at: Time.current)
       run
+    rescue StandardError
+      run.update!(status: :failed, finished_at: Time.current) if run.running?
+      raise
+    end
+
+    def run!(&on_example_finished)
+      run = start!
+      execute!(run, &on_example_finished)
     end
 
     private
+
+    def prepare_examples
+      raise ArgumentError, "#{@eval_class.name} must declare an input_type" unless @eval_class.input_type
+      raise ArgumentError, "#{@eval_class.name} must declare an output_type" unless @eval_class.output_type
+
+      examples = load_examples
+      examples = examples.select { |ex| @only.include?(ex.key) } if @only
+      validate_examples!(examples)
+      examples
+    end
 
     def load_examples
       dir = Example.examples_dir_for(@eval_root, @eval_class.eval_name)

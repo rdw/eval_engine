@@ -23,6 +23,12 @@ RSpec.describe "EvalEngine::Evals", type: :request do
       expect(response.body).to include('href="/eval_engine/is_ebike_manufacturer"')
     end
 
+    it "loads Turbo JS via the engine layout" do
+      get "/eval_engine/"
+
+      expect(response.body).to match(%r{<script src="/assets/turbo-[^"]+\.js" type="module"></script>})
+    end
+
     it "renders the eval's latest score from real RunExample rows" do
       run =
         EvalEngine::Run.create!(

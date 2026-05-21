@@ -101,6 +101,20 @@ config.eval_engine.connects_to = { database: { writing: :evals } }
 
 When unset, EvalEngine's models fall through to the host's default connection — so simple apps need no extra configuration.
 
+## Live UI updates (Action Cable)
+
+Runs from the web UI are enqueued as background jobs and broadcast per-example progress to the eval show page via Turbo Streams. This relies on Action Cable being available in the host app, which is the Rails default — usually nothing to configure. Three host requirements to be aware of:
+
+- Action Cable must not be disabled (it's enabled by default in every Rails 5.0+ app).
+- `config.action_cable.allowed_request_origins` must accept the host's own origin in non-development environments. Most hosts already set this for any cable-using feature; if no other feature uses cable, add the host's URL to that allowlist.
+- **The cable adapter must bridge processes if your job worker runs separately from your web server.** This is the most common gotcha. The Rails default `cable.yml` uses `adapter: async` for development, which is in-process pubsub only: a broadcast made in a SolidQueue/Sidekiq worker process never reaches the web process subscribers, so the page subscribes successfully but receives nothing. If you run any out-of-process worker (including SolidQueue in development), switch the cable adapter to one of:
+  - **Solid Cable** — `gem "solid_cable"`, `bin/rails solid_cable:install`, then `adapter: solid_cable` in `cable.yml`. Postgres/MySQL/SQLite-based; no extra infrastructure.
+  - **Redis** — `adapter: redis` in `cable.yml` with a Redis URL. Battle-tested.
+
+  The web-process `async` adapter only works end-to-end if jobs also run in the web process (the default `:async` ActiveJob adapter, or `perform_now` paths like specs).
+
+For background-job durability in production, configure a real queue adapter (SolidQueue, Sidekiq, etc.) — the default `:async` ActiveJob adapter runs jobs in the web process and loses them on restart.
+
 ### 3. Install migrations into the second database's path
 
 ```bash

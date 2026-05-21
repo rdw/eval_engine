@@ -2,22 +2,26 @@ require "rails_helper"
 
 RSpec.describe "EvalEngine::Runs", type: :request do
   describe "POST /:name/runs" do
-    it "runs the eval and creates a Run row, redirecting back to the eval page" do
-      expect { post "/eval_engine/is_ebike_manufacturer/runs", params: { only: "amazon" } }.to change(
-        EvalEngine::Run,
-        :count
-      ).by(1)
+    include ActiveJob::TestHelper
 
+    it "creates the Run row synchronously, enqueues a RunJob, and redirects" do
+      expect {
+        post "/eval_engine/is_ebike_manufacturer/runs", params: { only: "amazon" }
+      }.to change(EvalEngine::Run, :count).by(1).and have_enqueued_job(EvalEngine::RunJob)
+
+      run = EvalEngine::Run.order(:id).last
+      expect(run.status).to eq("running")
+      expect(run.run_examples).to be_empty
       expect(response).to redirect_to("/eval_engine/is_ebike_manufacturer")
       follow_redirect!
-      expect(response.body).to include("Ran is_ebike_manufacturer")
+      expect(response.body).to include("Started run of is_ebike_manufacturer")
     end
 
-    it "passes the only param down so a single example is run" do
+    it "passes the only param to the job so it scopes execution" do
       post "/eval_engine/is_ebike_manufacturer/runs", params: { only: "amazon" }
 
       run = EvalEngine::Run.order(:id).last
-      expect(run.run_examples.pluck(:example_key)).to eq(["amazon"])
+      expect(EvalEngine::RunJob).to have_been_enqueued.with(run.id, only: ["amazon"])
     end
 
     it "redirects to root with an alert when the eval doesn't exist" do

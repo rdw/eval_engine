@@ -300,6 +300,60 @@ RSpec.describe EvalEngine::Runner do
     end
   end
 
+  describe "#start! / #execute! split" do
+    let(:eval_class) do
+      Class.new(EvalEngine::Eval) do
+        input_type :hash do
+          field :color, :string
+        end
+        output_type :string, match: :exact
+        define_method(:generate) { |input| input["color"] }
+      end
+    end
+
+    before do
+      stub_const("ColorPickEval", eval_class)
+      write_example("red", input: { "color" => "red" }, expected: "red")
+    end
+
+    it "start! creates a :running Run row without executing any examples" do
+      run = described_class.new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1).start!
+
+      expect(run).to have_attributes(eval_name: "color_pick", status: "running", example_count: 1)
+      expect(run.run_examples).to be_empty
+    end
+
+    it "execute! runs examples on an existing Run and transitions it to :completed" do
+      runner = described_class.new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1)
+      run = runner.start!
+
+      runner.execute!(run)
+
+      expect(run.reload.status).to eq("completed")
+      expect(run.run_examples.pluck(:example_key)).to eq(["red"])
+    end
+
+    it "execute! reloads examples from disk when called on a fresh Runner (job rehydration path)" do
+      first = described_class.new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1)
+      run = first.start!
+
+      fresh = described_class.new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1)
+      fresh.execute!(run)
+
+      expect(run.reload.run_examples.pluck(:example_key)).to eq(["red"])
+    end
+
+    it "execute! transitions Run to :failed and re-raises when execution blows up" do
+      runner = described_class.new(eval_class: eval_class, eval_root: tmp_dir, parallelism: 1)
+      run = runner.start!
+      allow(runner).to receive(:execute_examples).and_raise("boom")
+
+      expect { runner.execute!(run) }.to raise_error("boom")
+      expect(run.reload.status).to eq("failed")
+      expect(run.finished_at).to be_present
+    end
+  end
+
   describe "EvalEngine.run convenience" do
     before do
       eval_dir = File.join(tmp_dir, eval_name)

@@ -50,6 +50,14 @@ module EvalEngine
       tag.span(status, class: "ee-pill ee-pill--#{status}")
     end
 
+    def dom_id_for_example_row(example_key)
+      EvalsHelper.example_row_dom_id(example_key)
+    end
+
+    def self.example_row_dom_id(example_key)
+      "eval_engine_example_row_#{example_key.parameterize(separator: "_")}"
+    end
+
     def duration_text(run)
       return "—" unless run.started_at && run.finished_at
 

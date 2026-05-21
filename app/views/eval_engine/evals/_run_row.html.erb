@@ -1,0 +1,21 @@
+<% selected_run_id ||= nil %>
+<% is_current = selected_run_id && run.id == selected_run_id %>
+<%= tag.tr id: dom_id(run), class: ("ee-row--current" if is_current) do %>
+  <td>
+    <% started = run.started_at&.iso8601 %>
+    <% if is_current %>
+      <span class="ee-link--current"><%= started %></span>
+    <% else %>
+      <%= link_to started, eval_path(eval_name, run_id: run.id) %>
+    <% end %>
+  </td>
+  <td><%= status_pill(run.status) %></td>
+  <td class="ee-table__num"><%= run.example_count %></td>
+  <td class="ee-table__num"><%= format_score(run.run_examples.average(:score)) %></td>
+  <td class="ee-table__num"><%= run.run_examples.errored.count %></td>
+  <td class="ee-table__num"><%= duration_text(run) %></td>
+  <td class="ee-table__num">
+    <%= button_to "Promote", eval_checkpoint_path(eval_name, run_id: run.id), method: :post, class: "ee-btn ee-btn--small" %>
+    <%= button_to "Delete", eval_run_path(eval_name, run.id), method: :delete, class: "ee-btn ee-btn--small ee-btn--danger" %>
+  </td>
+<% end %>
