@@ -214,6 +214,61 @@ RSpec.describe "EvalEngine::Examples", type: :request do
         expect(response.body).to include("score: 0.420")
         expect(response.body).not_to include("ee-table ee-diff")
       end
+
+      it "supports recursive dispatch: a custom collection partial renders children via render_diff_for" do
+        matcher_class = Class.new do
+          def diff_partial_path = "fixtures/diffs/recursive_collection"
+
+          def children_for_diff(score_tree, expected, output)
+            score_tree["children"].each_with_index.map do |child_st, i|
+              {
+                label: "item #{i}",
+                type: EvalEngine::Types::StringType.new,
+                score_tree: child_st,
+                expected: expected[i],
+                output: output[i]
+              }
+            end
+          end
+        end
+        custom_type = EvalEngine::Types::CustomType.new(matcher: matcher_class.new)
+        eval_class = Class.new(EvalEngine::Eval)
+        eval_class.define_singleton_method(:output_type) { custom_type }
+        allow(EvalEngine::Loader).to receive(:load_eval).and_call_original
+        allow(EvalEngine::Loader).to receive(:load_eval).with("is_ebike_manufacturer").and_return(eval_class)
+
+        run =
+          EvalEngine::Run.create!(
+            eval_name: "is_ebike_manufacturer",
+            status: :completed,
+            started_at: 1.minute.ago,
+            finished_at: Time.current
+          )
+        EvalEngine::RunExample.create!(
+          run: run,
+          example_key: "amazon",
+          status: :completed,
+          output: %w[foo wrong],
+          expected: %w[foo right],
+          score: 0.5,
+          score_tree: {
+            "score" => 0.5,
+            "children" => [{ "score" => 1.0 }, { "score" => 0.0 }]
+          },
+          finished_at: Time.current,
+          started_at: 1.second.ago
+        )
+
+        get "/eval_engine/is_ebike_manufacturer/examples/amazon"
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("RECURSIVE COLLECTION HEADER")
+        expect(response.body).to include("overall score: 0.500")
+        expect(response.body).to include("item 0")
+        expect(response.body).to include("item 1")
+        # Each child rendered via the default walker — table from StringType partial.
+        expect(response.body.scan("ee-table ee-diff").length).to eq(2)
+      end
     end
   end
 end

@@ -1,0 +1,15 @@
+<div class="fixture-recursive-collection">
+  <p>RECURSIVE COLLECTION HEADER (overall score: <%= format_score(score_tree["score"]) %>)</p>
+  <% output_type.matcher.children_for_diff(score_tree, expected, output).each do |child| %>
+    <div class="fixture-recursive-collection__child">
+      <h4><%= child[:label] %></h4>
+      <%= render_diff_for(
+            output_type: child[:type],
+            eval_name: eval_name,
+            score_tree: child[:score_tree],
+            expected: child[:expected],
+            output: child[:output]
+          ) %>
+    </div>
+  <% end %>
+</div>

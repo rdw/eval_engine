@@ -124,6 +124,98 @@ bin/rails db:migrate:evals
 
 The `MIGRATIONS_PATH` override on the install task is specific to this engine — it skips the multi-DB `database.yml` lookup that Rails' default install task uses, so you can install migrations before (or independently of) configuring the second database.
 
+## Custom diff rendering
+
+The per-example show page renders a score-tree diff. By default it walks the tree producing a flat table (path / expected / output / score). This works for any built-in type and any nesting of them — array of hashes, hash of arrays, etc. all produce sensible rows like `users[0].name | "Alice" | "alice" | 0.5`.
+
+Custom matchers can override this when the default table doesn't fit. A matcher that implements `diff_partial_path → String` gets its named partial rendered instead.
+
+### Minimal custom partial
+
+```ruby
+class WeightedRubricMatcher
+  def match(actual, expected) = ...
+  def diff_partial_path = "evals/diffs/weighted_rubric"
+end
+```
+
+```erb
+<%# app/views/evals/diffs/_weighted_rubric.html.erb %>
+<%# locals: output_type, eval_name, score_tree, expected, output %>
+<div>
+  <p>Score: <%= format_score(score_tree["score"]) %></p>
+  <%# render however you like — all of DiffPresentationHelper's primitives are available %>
+</div>
+```
+
+Partial paths are plain Rails partial references — resolved against the combined host + engine view paths, with host paths winning. The five locals (`output_type`, `eval_name`, `score_tree`, `expected`, `output`) are always passed.
+
+### Recursive dispatch — collections whose children have different matchers
+
+A matcher whose children are themselves scored by *different* matchers can recurse via `render_diff_for`. The pattern: expose a "children" iterator on the matcher that yields each child's type + slice of the score_tree/expected/output, then have the partial call `render_diff_for` per child.
+
+Motivating example: a `WeightedSetMatcher` that scores an array partitioned into named sets (e.g. `critical` weight 1.0, `optional` weight 0.1), where each set's items are matched by their own sub-matcher. The diff would show one section per set, each section rendered by whatever matcher scored its items.
+
+```ruby
+class WeightedSetMatcher
+  def initialize(sets:) = (@sets = sets) # { name => { weight:, matcher:, ... } }
+  def match(actual, expected) = ...
+  def diff_partial_path = "evals/diffs/weighted_set"
+
+  # Sketch — your real iteration depends on how you store the partition in score_tree.
+  def children_for_diff(score_tree, expected, output)
+    score_tree["children"].each_with_index.map do |child_st, i|
+      set_name = score_tree.dig("children", i, "set_name")
+      {
+        label: "#{set_name} (weight #{@sets[set_name][:weight]})",
+        type: EvalEngine::Types::CustomType.new(matcher: @sets[set_name][:matcher]),
+        score_tree: child_st,
+        expected: expected[i],
+        output: output[i]
+      }
+    end
+  end
+end
+```
+
+```erb
+<%# app/views/evals/diffs/_weighted_set.html.erb %>
+<%# locals: output_type, eval_name, score_tree, expected, output %>
+<div>
+  <h3>Score: <%= format_score(score_tree["score"]) %></h3>
+  <% output_type.matcher.children_for_diff(score_tree, expected, output).each do |child| %>
+    <section>
+      <h4><%= child[:label] %></h4>
+      <%= render_diff_for(
+            output_type: child[:type],
+            eval_name: eval_name,
+            score_tree: child[:score_tree],
+            expected: child[:expected],
+            output: child[:output]
+          ) %>
+    </section>
+  <% end %>
+</div>
+```
+
+Each recursive call dispatches independently: if `child[:type]` is a built-in type (or any type without `diff_partial_path` overridden), it falls through to the default walker — so child rendering can be a mix of custom panels and walker tables without extra work.
+
+### What's available in custom partials
+
+Pushed onto `ActionController::Base` via an engine initializer, so every host view (including diff partials) gets them automatically:
+
+- `format_score(score)` — `"0.500"` / `"—"` for nil
+- `score_class(score)` — `"ee-score--high"` / `"--mid"` / `"--low"` / `"--missing"`
+- `diff_row_color(score)` — HSL background color string, red→green by score
+- `format_diff_value(value)` — formatted `<pre>` or `—` for nil
+- `render_diff_for(output_type:, eval_name:, score_tree:, expected:, output:)` — recursive dispatch
+
+Walker-internal helpers (`diff_rows`, `walk_diff`) live in `EvalEngine::EvalsHelper` and aren't pushed globally — `include EvalEngine::EvalsHelper` in your view context if you genuinely need to walk a score_tree yourself.
+
+### Error messages
+
+`EvalEngine::DiffRendering::ConfigurationError` is raised loudly (not papered over) when a matcher returns a bad `diff_partial_path` or the partial doesn't exist. The message names the offending matcher class and tells you how to fix it.
+
 ## Development
 
 ```bash
