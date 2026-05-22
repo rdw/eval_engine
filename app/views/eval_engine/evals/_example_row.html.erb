@@ -1,6 +1,6 @@
 <% example_link_params ||= {} %>
 <%= tag.tr id: dom_id_for_example_row(row[:key]), class: ("ee-row--muted" unless row[:in_run]) do %>
-  <td><%= link_to row[:key], eval_example_path(eval_name, row[:key], **example_link_params) %></td>
+  <td class="ee-table__key"><%= link_to row[:key], eval_example_path(eval_name, row[:key], **example_link_params) %></td>
   <td>
     <% if row[:in_run] %>
       <%= example_status_pill(row[:latest]) %>

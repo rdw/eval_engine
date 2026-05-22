@@ -94,6 +94,7 @@ h2 { font-size: 16px; margin: 0 0 12px; color: var(--ee-fg-muted); text-transfor
 
 .ee-table tbody tr:last-child td { border-bottom: none; }
 .ee-table__num { text-align: right; font-variant-numeric: tabular-nums; }
+.ee-table__key { overflow-wrap: anywhere; }
 
 .ee-table tbody tr.ee-row--current td { background: #eef2ff; font-weight: 600; }
 .ee-link--current { color: var(--ee-fg-muted); font-weight: 600; }
