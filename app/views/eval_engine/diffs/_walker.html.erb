@@ -1,0 +1,25 @@
+<% rows = diff_rows(score_tree, expected, output) %>
+<% if rows.empty? %>
+  <p class="ee-empty">No diff available.</p>
+<% else %>
+  <table class="ee-table ee-diff">
+    <thead>
+      <tr>
+        <th>Path</th>
+        <th>Expected</th>
+        <th>Output</th>
+        <th class="ee-table__num">Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% rows.each do |row| %>
+        <tr style="background-color: <%= diff_row_color(row[:score]) %>">
+          <td><code><%= row[:path] %></code></td>
+          <td><%= format_diff_value(row[:expected]) %></td>
+          <td><%= format_diff_value(row[:output]) %></td>
+          <td class="ee-table__num"><%= format_score(row[:score]) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>

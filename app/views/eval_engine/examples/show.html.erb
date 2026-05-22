@@ -25,31 +25,7 @@
 <% else %>
   <section class="ee-section">
     <h2>Diff (score: <%= example_score_cell(@selected) %>, ran <%= @selected.started_at&.iso8601 %>)</h2>
-    <% rows = diff_rows(@selected.score_tree, @example.expected, @selected.output) %>
-    <% if rows.empty? %>
-      <p class="ee-empty">No diff available.</p>
-    <% else %>
-      <table class="ee-table ee-diff">
-        <thead>
-          <tr>
-            <th>Path</th>
-            <th>Expected</th>
-            <th>Output</th>
-            <th class="ee-table__num">Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% rows.each do |row| %>
-            <tr style="background-color: <%= diff_row_color(row[:score]) %>">
-              <td><code><%= row[:path] %></code></td>
-              <td><%= format_diff_value(row[:expected]) %></td>
-              <td><%= format_diff_value(row[:output]) %></td>
-              <td class="ee-table__num"><%= format_score(row[:score]) %></td>
-            </tr>
-          <% end %>
-        </tbody>
-      </table>
-    <% end %>
+    <%= render_diff_for(output_type: @output_type, eval_name: @eval_name, score_tree: @selected.score_tree, expected: @example.expected, output: @selected.output) %>
   </section>
 <% end %>
 

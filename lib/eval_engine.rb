@@ -12,6 +12,7 @@ require "eval_engine/loader"
 require "eval_engine/runner"
 require "eval_engine/scoring"
 require "eval_engine/rescorer"
+require "eval_engine/diff_rendering"
 
 module EvalEngine
   mattr_accessor :connects_to

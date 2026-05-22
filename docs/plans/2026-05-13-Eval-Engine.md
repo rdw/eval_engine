@@ -410,6 +410,8 @@ end
 
 Custom matchers must implement `match(actual, expected) → score_tree_hash` where the return value is a hash in the score tree JSON format described above.  They must be pure functions (no side effects, no external state).  Shape validation is skipped for custom matchers — the matcher is responsible for handling whatever shapes it receives.
 
+Custom matchers MAY also implement `diff_partial_path → String`, which returns the path of a Rails partial used to render this matcher's diff on the per-example show page in place of the default tree-walker table.  The partial is rendered with locals `score_tree:, expected:, output:`.  The returned path is a plain Rails partial reference (no engine-vs-app namespacing) — Rails resolves it against the combined view paths of the host and every loaded engine, with host paths winning.  Useful when `expected` carries metadata that the default parallel-walk renderer can't interpret.  When omitted, custom matchers get the same default walker as built-in types.
+
 ### Open questions
 
 - **Library**: A lightweight custom DSL (no dependencies) vs. building on `dry-types`.  Current leaning: custom DSL — our type system is very constrained (primitives + hashes + arrays), and a dependency adds complexity we don't need.  Can adopt `dry-types` later if the type system grows.

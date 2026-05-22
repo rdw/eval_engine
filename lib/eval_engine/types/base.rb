@@ -19,6 +19,10 @@ module EvalEngine
       def match(_actual, _expected)
         raise NotImplementedError
       end
+
+      def diff_partial_path
+        "eval_engine/diffs/walker"
+      end
     end
   end
 end

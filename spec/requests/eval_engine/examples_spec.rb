@@ -176,5 +176,44 @@ RSpec.describe "EvalEngine::Examples", type: :request do
         expect(response).to have_http_status(:not_found)
       end
     end
+
+    describe "custom matcher with diff_partial_path" do
+      it "renders the matcher's partial instead of the default walker" do
+        matcher = Class.new { def diff_partial_path = "fixtures/diffs/test_matcher" }.new
+        custom_type = EvalEngine::Types::CustomType.new(matcher: matcher)
+        eval_class = Class.new(EvalEngine::Eval)
+        eval_class.define_singleton_method(:output_type) { custom_type }
+        allow(EvalEngine::Loader).to receive(:load_eval).and_call_original
+        allow(EvalEngine::Loader).to receive(:load_eval).with("is_ebike_manufacturer").and_return(eval_class)
+
+        run =
+          EvalEngine::Run.create!(
+            eval_name: "is_ebike_manufacturer",
+            status: :completed,
+            started_at: 1.minute.ago,
+            finished_at: Time.current
+          )
+        EvalEngine::RunExample.create!(
+          run: run,
+          example_key: "amazon",
+          status: :completed,
+          output: "manufacturer",
+          expected: "retailer",
+          score: 0.42,
+          score_tree: {
+            "score" => 0.42
+          },
+          finished_at: Time.current,
+          started_at: 1.second.ago
+        )
+
+        get "/eval_engine/is_ebike_manufacturer/examples/amazon"
+
+        expect(response).to have_http_status(:ok)
+        expect(response.body).to include("FIXTURE DIFF RENDERED FROM CUSTOM MATCHER PARTIAL")
+        expect(response.body).to include("score: 0.420")
+        expect(response.body).not_to include("ee-table ee-diff")
+      end
+    end
   end
 end

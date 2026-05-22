@@ -717,6 +717,36 @@ RSpec.describe EvalEngine::Types do
       expect { type.validate!(nil) }.not_to raise_error
       expect { type.validate!(123) }.not_to raise_error
     end
+
+    describe "#diff_partial_path" do
+      it "delegates to the matcher when the matcher responds to it" do
+        matcher = double("Matcher", diff_partial_path: "evals/diffs/weighted_rubric")
+        type = described_class.new(matcher: matcher)
+
+        expect(type.diff_partial_path).to eq("evals/diffs/weighted_rubric")
+      end
+
+      it "falls back to the default walker when the matcher does not respond to it" do
+        type = described_class.new(matcher: double("Matcher"))
+
+        expect(type.diff_partial_path).to eq("eval_engine/diffs/walker")
+      end
+    end
+  end
+
+  describe "default diff_partial_path on built-in types" do
+    {
+      EvalEngine::Types::StringType => -> { EvalEngine::Types::StringType.new },
+      EvalEngine::Types::IntegerType => -> { EvalEngine::Types::IntegerType.new },
+      EvalEngine::Types::FloatType => -> { EvalEngine::Types::FloatType.new },
+      EvalEngine::Types::BooleanType => -> { EvalEngine::Types::BooleanType.new },
+      EvalEngine::Types::HashType => -> { EvalEngine::Types::HashType.new(fields: {}) },
+      EvalEngine::Types::ArrayType => -> { EvalEngine::Types::ArrayType.new(element_type: EvalEngine::Types::StringType.new) }
+    }.each do |klass, build|
+      it "returns 'eval_engine/diffs/walker' for #{klass.name}" do
+        expect(build.call.diff_partial_path).to eq("eval_engine/diffs/walker")
+      end
+    end
   end
 
   describe EvalEngine::Types::HashTypeBuilder do

@@ -8,6 +8,7 @@ module EvalEngine
       @example = find_example(@eval_name, @example_key)
       return render plain: "Example not found: #{@example_key}", status: :not_found unless @example
 
+      @output_type = Loader.load_eval(@eval_name).output_type
       @history = history_for(@eval_name, @example_key)
       @selected = pick_selected_run_example(@history, params[:run_id])
       return if @selected || params[:run_id].blank?
